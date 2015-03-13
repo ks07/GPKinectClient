@@ -1,0 +1,3 @@
+[submodule "GPKinectAPI"]
+	path = GPKinectAPI
+	url = git@github.com:ks07/GPKinectAPI

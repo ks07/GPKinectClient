@@ -9,6 +9,10 @@ KinectInterface::KinectInterface()
 
 KinectInterface::~KinectInterface()
 {
+	if (sensor != NULL) {
+		sensor->Release();
+		sensor = NULL;
+	}
 }
 
 

@@ -24,7 +24,7 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	initSuccess = kinect->initKinect();
 	if (initSuccess) {
 		uint8_t *imgarr = (uint8_t *)malloc(640 * 480 * sizeof(uint8_t));
-		while (!kinect->getKinectData(NULL, imgarr)) { std::cout << '.'; } // TODO: Sleep here to throttle!
+		while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
 		std::cout << std::endl;
 		free(imgarr);
 	}
@@ -42,7 +42,7 @@ void OCVSlaveProtocol::Connect()
 
 		if (initSuccess) {
 			uint8_t *imgarr = (uint8_t *)calloc(640 * 480, sizeof(uint8_t));
-			if (kinect->getKinectData(NULL, imgarr)) {
+			if (kinect->getKinectData(NULL, imgarr, true)) {
 				cv::Mat test(480, 640, CV_8U, imgarr);
 				cv::imshow("src", test);
 				cv::waitKey();

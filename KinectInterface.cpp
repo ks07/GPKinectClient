@@ -20,18 +20,24 @@ bool KinectInterface::initKinect() {
 
 	// Initialize sensor
 	sensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH | NUI_INITIALIZE_FLAG_USES_COLOR);
+	depthFrameEvent = CreateEvent(NULL, true, false, NULL);
 	sensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_DEPTH, // Depth camera or rgb camera?
 		NUI_IMAGE_RESOLUTION_640x480,                // Image resolution
 		0,         // Image stream flags, e.g. near mode
 		2,        // Number of frames to buffer
-		NULL,     // Event handle
+		depthFrameEvent,     // Event handle
 		&depthStream);
 	return true;
 }
 
-bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest) {
+bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking) {
 	NUI_IMAGE_FRAME imageFrame;
 	NUI_LOCKED_RECT LockedRect;
+
+	if (blocking) {
+		WaitForSingleObject(depthFrameEvent, depthFrameTimeoutMillis);
+	}
+
 	if (sensor == NULL || sensor->NuiImageStreamGetNextFrame(depthStream, 0, &imageFrame) < 0) return false;
 	INuiFrameTexture* texture = imageFrame.pFrameTexture;
 	texture->LockRect(0, &LockedRect, NULL, 0);

@@ -24,8 +24,8 @@ public:
 
 	void filterArray(int *depthArray, int *filteredData);
 
-	const int width = 640;
-	const int height = 480;
+	static const int width = 640;
+	static const int height = 480;
 
 private:
 

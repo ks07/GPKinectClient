@@ -262,4 +262,5 @@ void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &foun
 
 	cv::imshow("test bbox", outputdisp);
 	cv::waitKey();
+	cv::destroyAllWindows();
 }

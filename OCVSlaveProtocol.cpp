@@ -18,20 +18,59 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
+	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	// TODO: Do we really want to be doing this here?
 	// TODO: Handle init errors
 	initSuccess = kinect->initKinect();
 	if (initSuccess) {
-		uint8_t *imgarr = (uint8_t *)malloc(640 * 480 * sizeof(uint8_t));
 		while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
 		std::cout << std::endl;
-		free(imgarr);
 	}
 }
 
 OCVSlaveProtocol::~OCVSlaveProtocol()
 {
+	delete kinect;
+	if (imgarr != NULL) {
+		free(imgarr);
+	}
+}
+
+bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
+{
+	bool retval = false;
+	found.clear();
+
+	if (initSuccess && kinect->getKinectData(NULL, imgarr, true))
+	{
+		cv::Mat input(480, 640, CV_8U, imgarr);
+		//cv::imshow("src", input);
+		//cv::waitKey();
+		kinect->RunOpenCV(input, found);
+		input.release();
+		return true;
+	}
+	else if (FIXED_FALLBACK)
+	{
+		std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
+		cv::Mat src = cv::imread("boxbroom_painted_2.png");
+		// Convert to grayscale
+		cv::Mat input;
+		cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
+		src.release();
+		kinect->RunOpenCV(input, found);
+		input.release();
+		return false;
+	}
+	else
+	{
+		return false;
+	}
+
+	std::cout << "Found" << found.size() << std::endl;
+
+	return retval;
 }
 
 void OCVSlaveProtocol::Connect()
@@ -40,44 +79,8 @@ void OCVSlaveProtocol::Connect()
 	{
 		std::vector<cv::RotatedRect> found;
 
-		if (initSuccess) {
-			uint8_t *imgarr = (uint8_t *)calloc(640 * 480, sizeof(uint8_t));
-			if (kinect->getKinectData(NULL, imgarr, true)) {
-				cv::Mat test(480, 640, CV_8U, imgarr);
-				cv::imshow("src", test);
-				cv::waitKey();
-				kinect->RunOpenCV(test, found);
-			}
-		}
-		else if (FIXED_FALLBACK) {
-			cv::Mat src = cv::imread("boxbroom_painted_2.png");
-			cv::imshow("test", src);
-			cv::waitKey();
-			// Convert to grayscale
-			cv::Mat test;
-			cv::cvtColor(src, test, cv::COLOR_BGR2GRAY);
-			src.release();
-			kinect->RunOpenCV(test, found);
-		}
-		else {
-			throw std::exception();
-		}
-
 
 		OCVSPacketChallenge pktChallenge;
-		OCVSPacketAck pktAck;
-
-		// Dummy Scan Data
-		std::vector<OCVSPacket *> chunks;
-		for (size_t i = 0; i < found.size(); i++)
-		{
-			chunks.push_back(new OCVSPacketScanChunk(i, found.at(i)));
-		}
-
-		std::cout << "Found" << found.size() << std::endl;
-
-		OCVSPacketScanHeader pktScanHead(chunks); // TODO: Empty constructor?
-		//OCVSPacketScanChunk pktScanChunk(100, cv::RotatedRect(cv::Point2f(50.0, 50.0), cv::Size2f(100.0,50.0), 45.0));
 
 		asio::io_service io_service;
 		tcp::resolver resolver(io_service);
@@ -126,14 +129,34 @@ void OCVSlaveProtocol::Connect()
 					throw asio::system_error(asio::error_code());
 				}
 
+				////////////////////////////////////////
+				// Attempt to get some chunks to send //
+				////////////////////////////////////////
+
 				std::cout << "Request received, ACK'ing and responding." << std::endl;
 
-				pktAck.Pack(buf);
+
+				CallVision(found);
+
+				std::vector<OCVSPacket *> chunks;
+				for (size_t i = 0; i < found.size(); i++)
+				{
+					chunks.push_back(new OCVSPacketScanChunk(i, found.at(i)));
+				}
+
+				OCVSPacketScanHeader pktScanHead(chunks); // TODO: Empty constructor?
+
+				// TODO: Re-arrange this, UE4 end needs to handle incomplete packets ASAP
+				OCVSPacketAck::getInstance()->Pack(buf);
 				socket.write_some(asio::buffer(buf), error);
 				if (error == asio::error::eof)
 					break; // Connection closed cleanly by peer.
 				else if (error)
 					throw asio::system_error(error); // Some other error.
+
+				////////////////////////////////////////
+				///////// Send the found chunks ////////
+				////////////////////////////////////////
 
 				pktScanHead.Pack(buf);
 				socket.write_some(asio::buffer(buf), error);

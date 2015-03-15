@@ -140,8 +140,16 @@ void OCVSlaveProtocol::Connect()
 
 					CallVision(found);
 
+					size_t chunk_count = found.size();
+
+					// TODO: Get the max size from API library
+					if (chunk_count > 255) {
+						std::cerr << "[WARN] Found more than 255 geometries, truncating!" << std::endl;
+						chunk_count = 255;
+					}
+
 					std::vector<OCVSPacket *> chunks;
-					for (size_t i = 0; i < found.size(); i++)
+					for (size_t i = 0; i < chunk_count; i++)
 					{
 						chunks.push_back(new OCVSPacketScanChunk(i, found.at(i)));
 					}

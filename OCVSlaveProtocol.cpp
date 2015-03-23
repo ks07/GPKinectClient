@@ -47,8 +47,14 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
 		cv::Mat input(480, 640, CV_8U, imgarr);
 		//cv::imshow("src", input);
 		//cv::waitKey();
-		kinect->RunOpenCV(input, found);
+
+		// X and Y are inverted in the game world, so we should tranpose here
+		cv::Mat transposed;
+		cv::transpose(input, transposed);
 		input.release();
+
+		kinect->RunOpenCV(transposed, found);
+		transposed.release();
 		return true;
 	}
 	else if (FIXED_FALLBACK)
@@ -59,8 +65,14 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
 		cv::Mat input;
 		cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
 		src.release();
-		kinect->RunOpenCV(input, found);
+
+		// X and Y are inverted in the game world, so we should tranpose here
+		cv::Mat transposed;
+		cv::transpose(input, transposed);
 		input.release();
+
+		kinect->RunOpenCV(transposed, found);
+		transposed.release();
 		return false;
 	}
 	else

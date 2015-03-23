@@ -211,9 +211,14 @@ void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &foun
 	cv::medianBlur(src, srcb, 5);
 	cv::imshow("blurred", srcb);
 
-	// Convert to binary image using Canny
+
 	cv::Mat bw;
-	cv::Canny(srcb, bw, 40, 70, 3);
+
+	// Convert to binary image using simple threshold.
+	cv::threshold(srcb, bw, 29, 255, CV_THRESH_BINARY_INV);
+	// Convert to binary image using Canny edge detection
+	//cv::Canny(srcb, bw, 40, 70, 3);
+
 	cv::imshow("test", bw);
 	cv::waitKey();
 

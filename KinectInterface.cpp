@@ -9,14 +9,17 @@ KinectInterface::KinectInterface()
 
 KinectInterface::~KinectInterface()
 {
+#ifndef DISABLE_KINECT
 	if (sensor != NULL) {
 		sensor->Release();
 		sensor = NULL;
 	}
+#endif
 }
 
 
 bool KinectInterface::initKinect() {
+#ifndef DISABLE_KINECT
 	// Get a working kinect sensor
 	int numSensors;
 	if (NuiGetSensorCount(&numSensors) < 0 || numSensors < 1) return false;
@@ -32,9 +35,13 @@ bool KinectInterface::initKinect() {
 		depthFrameEvent,     // Event handle
 		&depthStream);
 	return true;
+#else
+	return false;
+#endif
 }
 
 bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking) {
+#ifndef DISABLE_KINECT
 	NUI_IMAGE_FRAME imageFrame;
 	NUI_LOCKED_RECT LockedRect;
 
@@ -99,6 +106,9 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *sc
 	texture->UnlockRect(0);
 	sensor->NuiImageStreamReleaseFrame(depthStream, &imageFrame);
 	return true;
+#else
+	return false;
+#endif
 }
 
 // Filter out 0's to the mode of the surrounding pixels

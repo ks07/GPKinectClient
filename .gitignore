@@ -8,6 +8,7 @@
 
 # Build results
 [Dd]ebug/
+[Dd]ebugNoKinect/
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/

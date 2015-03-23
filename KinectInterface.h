@@ -2,9 +2,11 @@
 #include <Windows.h>
 #include <Ole2.h>
 
+#ifndef DISABLE_KINECT
 #include <NuiApi.h>
 #include <NuiImageCamera.h>
 #include <NuiSensor.h>
+#endif
 
 #include <vector>
 #include <stdint.h>
@@ -29,10 +31,12 @@ public:
 
 private:
 
+#ifndef DISABLE_KINECT
 	// Kinect variables
 	HANDLE depthStream;
 	HANDLE depthFrameEvent;
 	INuiSensor* sensor = NULL;
+#endif
 
 	DWORD depthFrameTimeoutMillis = 15 * 1000;
 

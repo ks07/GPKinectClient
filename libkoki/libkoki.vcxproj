@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\OpenCV.2.4.10\build\native\OpenCV.props" Condition="Exists('..\packages\OpenCV.2.4.10\build\native\OpenCV.props')" />
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>libkoki</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <NuGetPackageImportStamp>90aeb160</NuGetPackageImportStamp>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>include;</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="bearing.c" />
+    <ClCompile Include="code_grid.c" />
+    <ClCompile Include="context.c" />
+    <ClCompile Include="contour.c" />
+    <ClCompile Include="crc12.c" />
+    <ClCompile Include="html-logger.c" />
+    <ClCompile Include="image.c" />
+    <ClCompile Include="integral-image.c" />
+    <ClCompile Include="labelling.c" />
+    <ClCompile Include="logger.c" />
+    <ClCompile Include="marker.c" />
+    <ClCompile Include="pca.c" />
+    <ClCompile Include="pose.c" />
+    <ClCompile Include="quad.c" />
+    <ClCompile Include="rotation.c" />
+    <ClCompile Include="text-logger.c" />
+    <ClCompile Include="threshold.c" />
+    <ClCompile Include="unwarp.c" />
+    <ClCompile Include="v4l.c" />
+    <ClCompile Include="yaml_config.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include\bearing.h" />
+    <ClInclude Include="include\camera.h" />
+    <ClInclude Include="include\code_grid.h" />
+    <ClInclude Include="include\code_table.h" />
+    <ClInclude Include="include\context.h" />
+    <ClInclude Include="include\contour.h" />
+    <ClInclude Include="include\crc12.h" />
+    <ClInclude Include="include\debug.h" />
+    <ClInclude Include="include\html-logger.h" />
+    <ClInclude Include="include\image.h" />
+    <ClInclude Include="include\integral-image.h" />
+    <ClInclude Include="include\koki.h" />
+    <ClInclude Include="include\labelling.h" />
+    <ClInclude Include="include\logger.h" />
+    <ClInclude Include="include\marker.h" />
+    <ClInclude Include="include\pca.h" />
+    <ClInclude Include="include\points.h" />
+    <ClInclude Include="include\pose.h" />
+    <ClInclude Include="include\quad.h" />
+    <ClInclude Include="include\rotation.h" />
+    <ClInclude Include="include\text-logger.h">
+      <FileType>CppHeader</FileType>
+    </ClInclude>
+    <ClInclude Include="include\threshold.h" />
+    <ClInclude Include="include\unwarp.h" />
+    <ClInclude Include="include\v4l.h" />
+    <ClInclude Include="include\yaml_config.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\zlib.redist.1.2.8.7\build\native\zlib.redist.targets" Condition="Exists('..\packages\zlib.redist.1.2.8.7\build\native\zlib.redist.targets')" />
+    <Import Project="..\packages\zlib.1.2.7.30\build\native\zlib.targets" Condition="Exists('..\packages\zlib.1.2.7.30\build\native\zlib.targets')" />
+    <Import Project="..\packages\libintl.redist.0.18.2.1\build\native\libintl.redist.targets" Condition="Exists('..\packages\libintl.redist.0.18.2.1\build\native\libintl.redist.targets')" />
+    <Import Project="..\packages\libintl.0.18.2.1\build\native\libintl.targets" Condition="Exists('..\packages\libintl.0.18.2.1\build\native\libintl.targets')" />
+    <Import Project="..\packages\libffi.redist.3.0.10.3\build\native\libffi.redist.targets" Condition="Exists('..\packages\libffi.redist.3.0.10.3\build\native\libffi.redist.targets')" />
+    <Import Project="..\packages\libffi.3.0.10.3\build\native\libffi.targets" Condition="Exists('..\packages\libffi.3.0.10.3\build\native\libffi.targets')" />
+    <Import Project="..\packages\glib.redist.2.36.2.11\build\native\glib.redist.targets" Condition="Exists('..\packages\glib.redist.2.36.2.11\build\native\glib.redist.targets')" />
+    <Import Project="..\packages\glib.2.36.2.11\build\native\glib.targets" Condition="Exists('..\packages\glib.2.36.2.11\build\native\glib.targets')" />
+    <Import Project="..\packages\OpenCV.2.4.10\build\native\OpenCV.targets" Condition="Exists('..\packages\OpenCV.2.4.10\build\native\OpenCV.targets')" />
+  </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\zlib.redist.1.2.8.7\build\native\zlib.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\zlib.redist.1.2.8.7\build\native\zlib.redist.targets'))" />
+    <Error Condition="!Exists('..\packages\zlib.1.2.7.30\build\native\zlib.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\zlib.1.2.7.30\build\native\zlib.targets'))" />
+    <Error Condition="!Exists('..\packages\libintl.redist.0.18.2.1\build\native\libintl.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\libintl.redist.0.18.2.1\build\native\libintl.redist.targets'))" />
+    <Error Condition="!Exists('..\packages\libintl.0.18.2.1\build\native\libintl.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\libintl.0.18.2.1\build\native\libintl.targets'))" />
+    <Error Condition="!Exists('..\packages\libffi.redist.3.0.10.3\build\native\libffi.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\libffi.redist.3.0.10.3\build\native\libffi.redist.targets'))" />
+    <Error Condition="!Exists('..\packages\libffi.3.0.10.3\build\native\libffi.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\libffi.3.0.10.3\build\native\libffi.targets'))" />
+    <Error Condition="!Exists('..\packages\glib.redist.2.36.2.11\build\native\glib.redist.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\glib.redist.2.36.2.11\build\native\glib.redist.targets'))" />
+    <Error Condition="!Exists('..\packages\glib.2.36.2.11\build\native\glib.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\glib.2.36.2.11\build\native\glib.targets'))" />
+    <Error Condition="!Exists('..\packages\OpenCV.2.4.10\build\native\OpenCV.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\OpenCV.2.4.10\build\native\OpenCV.props'))" />
+    <Error Condition="!Exists('..\packages\OpenCV.2.4.10\build\native\OpenCV.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\OpenCV.2.4.10\build\native\OpenCV.targets'))" />
+  </Target>
+</Project>

@@ -39,7 +39,7 @@
 #include "pose.h"
 #include "rotation.h"
 #include "bearing.h"
-#include <sys/time.h> /* needed for videodev2.h */
+//#include <sys/time.h> /* needed for videodev2.h */  //Can use windows alternatives if needbe
 #include "v4l.h"
 #include "yaml_config.h"
 

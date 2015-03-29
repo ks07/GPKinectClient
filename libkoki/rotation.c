@@ -21,7 +21,7 @@
  */
 
 #include <stdint.h>
-#include <cv.h>
+#include <opencv\cv.h>
 #include <assert.h>
 #include <math.h>
 

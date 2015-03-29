@@ -24,7 +24,7 @@
 #include <glib.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <cv.h>
+#include <opencv\cv.h>
 
 #include "labelling.h"
 #include "integral-image.h"

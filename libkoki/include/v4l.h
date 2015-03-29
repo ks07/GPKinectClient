@@ -22,8 +22,8 @@
  * @brief Header file for interacting with cameras using V4L2
  */
 
-#include <sys/time.h> /* needed by videodev2.h */
-#include <linux/videodev2.h>
+//#include <sys/time.h> /* needed by videodev2.h */
+//#include <linux/videodev2.h>
 #include <stdint.h>
 
 #ifdef __cplusplus

@@ -20,7 +20,7 @@
  * @brief Implementation of position estimation in 3D space
  */
 
-#include <cv.h>
+#include <opencv\cv.h>
 #include <stdint.h>
 
 #include "points.h"

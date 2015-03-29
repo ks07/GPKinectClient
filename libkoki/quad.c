@@ -22,7 +22,7 @@
 
 #include <stdint.h>
 #include <glib.h>
-#include <cv.h>
+#include <opencv\cv.h>
 #include <math.h>
 
 #include "contour.h"

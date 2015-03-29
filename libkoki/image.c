@@ -20,7 +20,7 @@
  * @brief Implementation for helpful image functions
  */
 
-#include <cv.h>
+#include <opencv\cv.h>
 
 #include "image.h"
 

@@ -21,7 +21,7 @@
  */
 
 #include <glib.h>
-#include <cv.h>
+#include <opencv\cv.h>
 #include <stdint.h>
 
 #include "points.h"

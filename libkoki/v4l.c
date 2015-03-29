@@ -22,15 +22,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/fcntl.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
-#include <sys/mman.h>
+//#include <sys/fcntl.h>
+//#include <sys/ioctl.h>
+//#include <unistd.h>
+//#include <sys/mman.h>
 #include <string.h>
 #include <assert.h>
-#include <sys/time.h> /* for videodev2.h */
-#include <linux/videodev2.h>
-#include <cv.h>
+//#include <sys/time.h> /* for videodev2.h */
+//#include <linux/videodev2.h>
+#include <opencv\cv.h>
 
 #include "labelling.h" /* for KOKI_IPLIMAGE_ELEM */
 
@@ -46,7 +46,7 @@
  * @param filename  the file name (e.g. '/dev/video0') of the camera
  * @return          the file dscriptor on successful opening, -1 otherwise
  */
-int koki_v4l_open_cam(const char* filename)
+/*int koki_v4l_open_cam(const char* filename)
 {
 
 	int fd;
@@ -60,7 +60,7 @@ int koki_v4l_open_cam(const char* filename)
 
 	return fd;
 
-}
+}*/
 
 
 
@@ -84,7 +84,7 @@ void koki_v4l_close_cam(int fd)
  * @param fd  the camera's file descriptor
  * @return    a filled V4L2's format structure
  */
-struct v4l2_format koki_v4l_get_format(int fd)
+/*struct v4l2_format koki_v4l_get_format(int fd)
 {
 
 	struct v4l2_format fmt;
@@ -99,7 +99,7 @@ struct v4l2_format koki_v4l_get_format(int fd)
 
 	return fmt;
 
-}
+}*/
 
 
 
@@ -108,7 +108,7 @@ struct v4l2_format koki_v4l_get_format(int fd)
  *
  * @param fmt  the V4L2 format structure
  */
-void koki_v4l_print_format(struct v4l2_format fmt)
+/*void koki_v4l_print_format(struct v4l2_format fmt)
 {
 	printf("Camera Format:\n");
 
@@ -129,7 +129,7 @@ void koki_v4l_print_format(struct v4l2_format fmt)
 
 	printf("  bytes per line: %d\n", fmt.fmt.pix.bytesperline);
 
-}
+}*/
 
 
 
@@ -140,7 +140,7 @@ void koki_v4l_print_format(struct v4l2_format fmt)
  * @param h  the desired height of the image
  * @return   a YUYV V4L2 format structure
  */
-struct v4l2_format koki_v4l_create_YUYV_format(unsigned int w, unsigned int h)
+/*struct v4l2_format koki_v4l_create_YUYV_format(unsigned int w, unsigned int h)
 {
 
 	struct v4l2_format fmt;
@@ -156,7 +156,7 @@ struct v4l2_format koki_v4l_create_YUYV_format(unsigned int w, unsigned int h)
 
 	return fmt;
 
-}
+}*/
 
 
 
@@ -167,7 +167,7 @@ struct v4l2_format koki_v4l_create_YUYV_format(unsigned int w, unsigned int h)
  * @param fmt the format to set
  * @return    a negative value on failure
  */
-int koki_v4l_set_format(int fd, struct v4l2_format fmt)
+/*int koki_v4l_set_format(int fd, struct v4l2_format fmt)
 {
 
 	int ret;
@@ -179,7 +179,7 @@ int koki_v4l_set_format(int fd, struct v4l2_format fmt)
 
 	return ret;
 
-}
+}*/
 
 
 
@@ -189,7 +189,7 @@ int koki_v4l_set_format(int fd, struct v4l2_format fmt)
  * @param fd  the camera's file descriptor
  * @return    a filled V4L2 capabilities structure for the camera
  */
-struct v4l2_capability koki_v4l_get_capability(int fd)
+/*struct v4l2_capability koki_v4l_get_capability(int fd)
 {
 
 	struct v4l2_capability cap;
@@ -204,7 +204,7 @@ struct v4l2_capability koki_v4l_get_capability(int fd)
 
 	return cap;
 
-}
+}*/
 
 
 
@@ -213,7 +213,7 @@ struct v4l2_capability koki_v4l_get_capability(int fd)
  *
  * @param cap  a V4L2 capability structure to output
  */
-void koki_v4l_print_capability(struct v4l2_capability cap)
+/*void koki_v4l_print_capability(struct v4l2_capability cap)
 {
 
 	printf("Capability:\n");
@@ -224,7 +224,7 @@ void koki_v4l_print_capability(struct v4l2_capability cap)
 	printf("   - streaming?  %s\n",
 	       cap.capabilities & V4L2_CAP_STREAMING ? "YES" : "NO");
 
-}
+}*/
 
 
 
@@ -235,7 +235,7 @@ void koki_v4l_print_capability(struct v4l2_capability cap)
  * @param id  the V4L2 control ID
  * @return    the value associated with the given control value
  */
-int koki_v4l_get_control(int fd, unsigned int id)
+/*int koki_v4l_get_control(int fd, unsigned int id)
 {
 
 	struct v4l2_control ctrl;
@@ -252,7 +252,7 @@ int koki_v4l_get_control(int fd, unsigned int id)
 
 	return ctrl.value;
 
-}
+}*/
 
 
 /**
@@ -262,7 +262,7 @@ int koki_v4l_get_control(int fd, unsigned int id)
  * @param id     the V4L2 control ID to modify
  * @param value  the new value to set the control to
  */
-int koki_v4l_set_control(int fd, unsigned int id, unsigned int value)
+/*int koki_v4l_set_control(int fd, unsigned int id, unsigned int value)
 {
 
 	struct v4l2_control ctrl;
@@ -280,7 +280,7 @@ int koki_v4l_set_control(int fd, unsigned int id, unsigned int value)
 
 	return ret;
 
-}
+}*/
 
 
 
@@ -294,7 +294,7 @@ int koki_v4l_set_control(int fd, unsigned int id, unsigned int value)
  * @return       an array of \c koki_buffer_ts of length \c count (note that
  *               \c count may have changed after this function returns)
  */
-koki_buffer_t* koki_v4l_prepare_buffers(int fd, int *count)
+/*koki_buffer_t* koki_v4l_prepare_buffers(int fd, int *count)
 {
 
 	struct v4l2_requestbuffers reqbuf;
@@ -357,7 +357,7 @@ koki_buffer_t* koki_v4l_prepare_buffers(int fd, int *count)
 
 	return buffers;
 
-}
+}*/
 
 
 
@@ -387,7 +387,7 @@ void koki_v4l_free_buffers(koki_buffer_t *buffers, int count)
  * @param fd  the camera's file descriptor
  * @return    a negative value on failure
  */
-int koki_v4l_start_stream(int fd)
+/*int koki_v4l_start_stream(int fd)
 {
 
 	int type, ret;
@@ -401,7 +401,7 @@ int koki_v4l_start_stream(int fd)
 
 	return ret;
 
-}
+}*/
 
 
 
@@ -413,7 +413,7 @@ int koki_v4l_start_stream(int fd)
  * @param fd  the camera's file descriptor
  * @return    a negative number on failure
  */
-int koki_v4l_stop_stream(int fd)
+/*int koki_v4l_stop_stream(int fd)
 {
 
 	int type, ret;
@@ -427,7 +427,7 @@ int koki_v4l_stop_stream(int fd)
 
 	return ret;
 
-}
+}*/
 
 
 
@@ -438,7 +438,7 @@ int koki_v4l_stop_stream(int fd)
  * @param buffers  the already allocated buffers structure
  * @return         a pointer to the image data array
  */
-uint8_t* koki_v4l_get_frame_array(int fd, koki_buffer_t *buffers)
+/*uint8_t* koki_v4l_get_frame_array(int fd, koki_buffer_t *buffers)
 {
 
 	struct v4l2_buffer buffer;
@@ -453,14 +453,14 @@ uint8_t* koki_v4l_get_frame_array(int fd, koki_buffer_t *buffers)
 	buffer.index = 0;
 
 	/* queue */
-	ret = ioctl(fd, VIDIOC_QBUF, &buffer);
+	/*ret = ioctl(fd, VIDIOC_QBUF, &buffer);
 	if (ret < 0){
 		fprintf(stderr, "failed to queue buffer\n");
 		return NULL;
 	}
 
 	/* dequeue */
-	ret = ioctl(fd, VIDIOC_DQBUF, &buffer);
+	/*ret = ioctl(fd, VIDIOC_DQBUF, &buffer);
 	if (ret < 0){
 		fprintf(stderr, "failed to dequeue buffer\n");
 		return NULL;
@@ -468,7 +468,7 @@ uint8_t* koki_v4l_get_frame_array(int fd, koki_buffer_t *buffers)
 
 	return buffers[0].start;
 
-}
+}*/
 
 
 /**

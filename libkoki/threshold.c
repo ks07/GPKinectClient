@@ -297,7 +297,8 @@ static void threshold_window_median(IplImage *frame, IplImage *output,
 	h = roi.height;
 	data_len = w * h;
 
-	int data[data_len];
+	// Microsoft's compiler doesn't support C99's variable length arrays...
+	int* data = malloc(data_len * sizeof(int));
 
 	/* calculate threshold */
 	for (uint16_t win_y = 0; win_y < h; win_y++)
@@ -320,6 +321,7 @@ static void threshold_window_median(IplImage *frame, IplImage *output,
 
 	KOKI_IPLIMAGE_GS_ELEM(output, x, y) = grey;
 
+	free(data);
 }
 
 

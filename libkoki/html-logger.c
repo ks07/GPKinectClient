@@ -23,7 +23,7 @@
 
 #include <errno.h>
 #include <glib.h>
-#include <highgui.h>
+#include <opencv\highgui.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 

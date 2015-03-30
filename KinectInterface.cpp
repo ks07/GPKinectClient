@@ -1,4 +1,6 @@
 #include <opencv2/opencv.hpp>
+//#include <vector>
+//#include <algorithm>
 
 #include "KinectInterface.h"
 
@@ -40,10 +42,12 @@ bool KinectInterface::initKinect() {
 #endif
 }
 
+
 bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking) {
 #ifndef DISABLE_KINECT
 	NUI_IMAGE_FRAME imageFrame;
 	NUI_LOCKED_RECT LockedRect;
+	//std::vector<USHORT> validPx;
 
 	if (blocking) {
 		WaitForSingleObject(depthFrameEvent, depthFrameTimeoutMillis);
@@ -92,16 +96,21 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *sc
 			}
 
 			// TODO: Don't filter here!!!
-			if (depth < 800 || depth > 4000) {
+			if (depth < depthMin || depth >= depthMax) {
 				first ? *scaled_dest++ = (uint8_t)128 : *scaled_dest++ = *(scaled_dest - 1);
 			}
 			else {
-				*scaled_dest++ = (uint8_t)(((float)(depth - 800) / 3200.0) * 256.0); // Scale to 800 - 4000 range (max distance of sensor... appears valid experimentally
+				//validPx.push_back(depth);
+				*scaled_dest++ = (uint8_t)(((float)(depth - depthMin) / float(depthRange)) * 256.0); // Scale to 800 - 4000 range (max distance of sensor... appears valid experimentally
 			}
 
 			first = false;
 		}
 	}
+
+	//std::sort(validPx.begin(), validPx.end());
+	//std::cout << validPx[0] << validPx[1] << validPx[2] << "..." << validPx[validPx.size() - 3] << validPx[validPx.size() - 2] << validPx[validPx.size() - 1] << std::endl;
+
 	//cout << dmax << ' ' << dmin << std::endl;
 	texture->UnlockRect(0);
 	sensor->NuiImageStreamReleaseFrame(depthStream, &imageFrame);
@@ -215,7 +224,7 @@ void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &foun
 	cv::Mat bw;
 
 	// Convert to binary image using simple threshold.
-	cv::threshold(srcb, bw, 29, 255, CV_THRESH_BINARY_INV);
+	cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
 	// Convert to binary image using Canny edge detection
 	//cv::Canny(srcb, bw, 40, 70, 3);
 

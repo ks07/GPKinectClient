@@ -29,6 +29,10 @@ public:
 	static const int width = 640;
 	static const int height = 480;
 
+	static const int depthMin = 923;
+	static const int depthMax = 1307;
+	static const int depthRange = depthMax - depthMin;
+
 private:
 
 #ifndef DISABLE_KINECT

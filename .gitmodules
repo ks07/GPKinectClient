@@ -1,3 +1,6 @@
 [submodule "GPKinectAPI"]
 	path = GPKinectAPI
 	url = git@github.com:ks07/GPKinectAPI
+[submodule "openAR"]
+	path = openAR
+	url = https://github.com/bharathp666/openAR.git

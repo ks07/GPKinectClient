@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+VisualStudioVersion = 12.0.30723.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OCV Recogniser", "OCV Recogniser.vcxproj", "{8B4DC75C-8280-4E89-9A8E-E789AE823A65}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libkoki", "libkoki\libkoki.vcxproj", "{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,18 +30,6 @@ Global
 		{8B4DC75C-8280-4E89-9A8E-E789AE823A65}.Release|Win32.ActiveCfg = Release|Win32
 		{8B4DC75C-8280-4E89-9A8E-E789AE823A65}.Release|Win32.Build.0 = Release|Win32
 		{8B4DC75C-8280-4E89-9A8E-E789AE823A65}.Release|x64.ActiveCfg = Release|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Debug|ARM.ActiveCfg = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Debug|Win32.ActiveCfg = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Debug|Win32.Build.0 = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Debug|x64.ActiveCfg = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.DebugNoKinect|ARM.ActiveCfg = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.DebugNoKinect|Win32.ActiveCfg = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.DebugNoKinect|Win32.Build.0 = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.DebugNoKinect|x64.ActiveCfg = Debug|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Release|ARM.ActiveCfg = Release|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Release|Win32.ActiveCfg = Release|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Release|Win32.Build.0 = Release|Win32
-		{A8C0E50D-4DD0-4D14-A58C-A7CFCE241C3A}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

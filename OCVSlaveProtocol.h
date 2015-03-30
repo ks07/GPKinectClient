@@ -1,5 +1,4 @@
 #include <opencv2/opencv.hpp>
-#include "libkoki/include/koki.h"
 #include <vector>
 #include "GPKinectAPI/OCVSPacket.h"
 #include "KinectInterface.h"
@@ -13,7 +12,7 @@ public:
 	void Connect();
 
 	bool CallDepthVision(std::vector<cv::RotatedRect> &found);
-    bool CallRGBVision(std::vector<libkoki::Marker> &found);
+    //bool CallRGBVision(std::vector<libkoki::Marker> &found);
 
 
 private:

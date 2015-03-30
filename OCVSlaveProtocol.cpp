@@ -85,7 +85,7 @@ bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
 	return retval;
 }
 
-bool OCVSlaveProtocol::CallRGBVision(std::vector<cv::RotatedRect> &found)
+/*bool OCVSlaveProtocol::CallRGBVision(std::vector<cv::RotatedRect> &found)
 {
     bool retval = false;
     found.clear();
@@ -131,7 +131,7 @@ bool OCVSlaveProtocol::CallRGBVision(std::vector<cv::RotatedRect> &found)
     std::cout << "Found" << found.size() << std::endl;
 
     return retval;
-}
+}*/
 
 void OCVSlaveProtocol::Connect()
 {

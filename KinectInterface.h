@@ -22,7 +22,8 @@ public:
 	bool initKinect();
 
 	// TODO: Decide what to do wrt debug viewing of Kinect input
-	bool getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking);
+	bool getKinectDepthData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking);
+    bool getKinectRGBData(int* dest, bool blocking);
 
 	void filterArray(int *depthArray, int *filteredData);
 
@@ -34,11 +35,14 @@ private:
 #ifndef DISABLE_KINECT
 	// Kinect variables
 	HANDLE depthStream;
+    HANDLE rgbStream;
 	HANDLE depthFrameEvent;
+    HANDLE rgbFrameEvent;
 	INuiSensor* sensor = NULL;
 #endif
 
 	DWORD depthFrameTimeoutMillis = 15 * 1000;
+    DWORD rgbFrameTimeoutMillis = 1000;
 
 	short frameCounter = 0;
 };

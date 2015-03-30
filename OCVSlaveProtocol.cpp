@@ -18,13 +18,13 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
-	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
+	, dimgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	// TODO: Do we really want to be doing this here?
 	// TODO: Handle init errors
 	initSuccess = kinect->initKinect();
 	if (initSuccess) {
-		while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
+		while (!kinect->getKinectDepthData(NULL, dimgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
 		std::cout << std::endl;
 	}
 }
@@ -32,19 +32,19 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 OCVSlaveProtocol::~OCVSlaveProtocol()
 {
 	delete kinect;
-	if (imgarr != NULL) {
-		free(imgarr);
+	if (dimgarr != NULL) {
+		free(dimgarr);
 	}
 }
 
-bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
+bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
 {
 	bool retval = false;
 	found.clear();
 
-	if (initSuccess && kinect->getKinectData(NULL, imgarr, true))
+	if (initSuccess && kinect->getKinectDepthData(NULL, dimgarr, true))
 	{
-		cv::Mat input(480, 640, CV_8U, imgarr);
+		cv::Mat input(480, 640, CV_8U, dimgarr);
 		//cv::imshow("src", input);
 		//cv::waitKey();
 
@@ -83,6 +83,54 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
 	std::cout << "Found" << found.size() << std::endl;
 
 	return retval;
+}
+
+bool OCVSlaveProtocol::CallRGBVision(std::vector<cv::RotatedRect> &found)
+{
+    bool retval = false;
+    found.clear();
+
+    if (initSuccess && kinect->getKinectDepthData(NULL, dimgarr, true))
+    {
+        cv::Mat input(480, 640, CV_8U, dimgarr);
+        //cv::imshow("src", input);
+        //cv::waitKey();
+
+        // X and Y are inverted in the game world, so we should tranpose here
+        cv::Mat transposed;
+        cv::transpose(input, transposed);
+        input.release();
+
+        kinect->RunOpenCV(transposed, found);
+        transposed.release();
+        return true;
+    }
+    else if (FIXED_FALLBACK)
+    {
+        std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
+        cv::Mat src = cv::imread("boxbroom_painted_2.png");
+        // Convert to grayscale
+        cv::Mat input;
+        cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
+        src.release();
+
+        // X and Y are inverted in the game world, so we should tranpose here
+        cv::Mat transposed;
+        cv::transpose(input, transposed);
+        input.release();
+
+        kinect->RunOpenCV(transposed, found);
+        transposed.release();
+        return false;
+    }
+    else
+    {
+        return false;
+    }
+
+    std::cout << "Found" << found.size() << std::endl;
+
+    return retval;
 }
 
 void OCVSlaveProtocol::Connect()
@@ -130,6 +178,12 @@ void OCVSlaveProtocol::Connect()
 				if (pktChallenge.VerifyReceived(buf)) {
 					std::cout << "Good response, connected." << std::endl;
 
+                    //HERE BE MARKERS
+                    while (false /*NOTASKEDFORSCAN*/)
+                    {
+                        //Get and send markers
+                    }
+
 					len = socket.read_some(asio::buffer(buf), error);
 					if (error == asio::error::eof)
 						break; // Connection closed cleanly by peer.
@@ -150,7 +204,7 @@ void OCVSlaveProtocol::Connect()
 					std::cout << "Request received, ACK'ing and responding." << std::endl;
 
 
-					CallVision(found);
+					CallDepthVision(found);
 
 					size_t chunk_count = found.size();
 

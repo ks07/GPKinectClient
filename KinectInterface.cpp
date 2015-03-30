@@ -25,22 +25,30 @@ bool KinectInterface::initKinect() {
 	if (NuiGetSensorCount(&numSensors) < 0 || numSensors < 1) return false;
 	if (NuiCreateSensorByIndex(0, &sensor) < 0) return false;
 
-	// Initialize sensor
+	// Initialize sensors
 	sensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH | NUI_INITIALIZE_FLAG_USES_COLOR);
 	depthFrameEvent = CreateEvent(NULL, true, false, NULL);
 	sensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_DEPTH, // Depth camera or rgb camera?
 		NUI_IMAGE_RESOLUTION_640x480,                // Image resolution
-		0,         // Image stream flags, e.g. near mode
-		2,        // Number of frames to buffer
-		depthFrameEvent,     // Event handle
+		0,                                           // Image stream flags, e.g. near mode
+		2,                                           // Number of frames to buffer
+		depthFrameEvent,                             // Event handle
 		&depthStream);
+
+    rgbFrameEvent = CreateEvent(NULL, true, false, NULL);
+    sensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_COLOR, // Depth camera or rgb camera?
+        NUI_IMAGE_RESOLUTION_640x480,                // Image resolution
+        0,                                           // Image stream flags, e.g. near mode
+        2,                                           // Number of frames to buffer
+        rgbFrameEvent,                               // Event handle
+        &rgbStream);
 	return true;
 #else
 	return false;
 #endif
 }
 
-bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking) {
+bool KinectInterface::getKinectDepthData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking) {
 #ifndef DISABLE_KINECT
 	NUI_IMAGE_FRAME imageFrame;
 	NUI_LOCKED_RECT LockedRect;
@@ -108,6 +116,40 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *sc
 	return true;
 #else
 	return false;
+#endif
+}
+
+bool KinectInterface::getKinectRGBData(int* dest, bool blocking) {
+#ifndef DISABLE_KINECT
+    NUI_IMAGE_FRAME imageFrame;
+    NUI_LOCKED_RECT LockedRect;
+
+    if (blocking) {
+        WaitForSingleObject(rgbFrameEvent, rgbFrameTimeoutMillis);
+    }
+
+    if (sensor == NULL || sensor->NuiImageStreamGetNextFrame(rgbStream, 0, &imageFrame) < 0) return false;
+    INuiFrameTexture* texture = imageFrame.pFrameTexture;
+    texture->LockRect(0, &LockedRect, NULL, 0);
+
+    if (LockedRect.Pitch != 0) {
+        bool first = true;
+        const USHORT* curr = (const USHORT*)LockedRect.pBits;
+        const USHORT* dataEnd = curr + (width*height) * 4;
+        frameCounter = (frameCounter + 1) % 4;
+        while (curr < dataEnd) {
+
+            *dest++ = *curr++;
+
+            first = false;
+        }
+    }
+    //cout << dmax << ' ' << dmin << std::endl;
+    texture->UnlockRect(0);
+    sensor->NuiImageStreamReleaseFrame(depthStream, &imageFrame);
+    return true;
+#else
+    return false;
 #endif
 }
 

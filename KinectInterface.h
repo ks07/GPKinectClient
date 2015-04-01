@@ -31,6 +31,8 @@ public:
 
 	void filterArray(int *depthArray, int *filteredData);
 
+	void ApplyCalibration(cv::Mat src, cv::Mat dest);
+
 	static const int width = 640;
 	static const int height = 480;
 

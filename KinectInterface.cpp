@@ -233,6 +233,9 @@ void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 		cv::imshow("MEAN", meanMat);
 		cv::imshow("CALIB", calibrationMask);
 		cv::imshow("DISPM", displayMask);
+
+		calibMask = calibrationMask;
+
 		cv::waitKey();
 
 		// Take a test image
@@ -261,7 +264,7 @@ void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 		cv::Mat corrected;
 		cv::Mat errorDisp;
 		correctedImage.convertTo(corrected, CV_8UC1);
-		cv::absdiff(meanMat, corrected, errorDisp);
+		cv::absdiff(meanMat, displayMask, errorDisp);
 
 		cv::imshow("CORRECTED", correctedImage);
 		cv::imshow("UCORRECTED", corrected);
@@ -273,6 +276,10 @@ void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 		std::cout << e.what() << std::endl;
 
 	}
+}
+
+void KinectInterface::ApplyCalibration(cv::Mat src, cv::Mat dest) {
+	cv::add(src, calibMask, dest, cv::noArray(), CV_8UC1);
 }
 
 void KinectInterface::RangeThreshold(cv::InputArray src, byte low, byte high, cv::OutputArray dst) {

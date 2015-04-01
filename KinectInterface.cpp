@@ -211,25 +211,111 @@ void KinectInterface::filterArray(int *depthArray, int *filteredData)
 	}
 }
 
-void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &found) {
-	std::cout << "OpenCV Version: " << CV_VERSION << std::endl;
+// Capture an image of the empty play area, and use this to create a mask that we can apply whenever a frame is processed.
+void KinectInterface::CalibrateDepth(cv::Mat &src, cv::Mat &corrected) {
+	try {
+		// We need a signed matrix here for difference values.
+		cv::Mat calibrationMask(src.size(), CV_16SC1);
+
+		// Take the average pixel value as correct. TODO: Is this better suited to median? Or perhaps restrict to only a small central area of the image?
+		auto correct = cv::mean(src);
+		cv::Mat meanMat(src.size(), CV_16SC1, correct);
+
+		// Compute the mask as a simple difference operation. TODO: Is this linear scaling appropriate? Should it be non-linear somehow?
+		cv::subtract(src, meanMat, calibrationMask, cv::noArray(), CV_16SC1);
+
+		// Debug display matrix where we offset the calibration mask into an unsigned range.
+		cv::Mat displayMask(src.size(), CV_8UC1);
+		cv::subtract(meanMat, calibrationMask, displayMask, cv::noArray(), CV_8UC1);
+
+
+		cv::imshow("SRC", src);
+		cv::imshow("MEAN", meanMat);
+		cv::imshow("CALIB", calibrationMask);
+		cv::imshow("DISPM", displayMask);
+		cv::waitKey();
+
+		// Take a test image
+		cv::Mat transposed;
+		{
+			uint8_t *imgarr = (uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t));
+			getKinectData(NULL, imgarr, true);
+			cv::Mat input(480, 640, CV_8U, imgarr);
+			cv::transpose(input, transposed);
+			input.release();
+			free(imgarr);
+		}
+
+		// Hopefully we should get the mean back. (or a clean-ish source)
+		cv::Mat correctedImage;
+		cv::subtract(transposed, calibrationMask, correctedImage, cv::noArray(), CV_16SC1);
+
+		cv::Mat unsignedCorrected;
+		correctedImage.convertTo(corrected, CV_8UC1);
+
+		cv::imshow("CORRECTED", correctedImage);
+		cv::imshow("UCORRECTED", corrected);
+		cv::waitKey();
+	}
+	catch (cv::Exception &e)
+	{
+		std::cout << e.what() << std::endl;
+
+	}
+}
+
+void KinectInterface::RangeThreshold(cv::InputArray src, byte low, byte high, cv::OutputArray dst) {
+	cv::Mat upperBound(src.size(), CV_8UC1, high);
+	cv::Mat lowerBound(src.size(), CV_8UC1, low);
+	cv::inRange(src, lowerBound, upperBound, dst);
+}
+
+void KinectInterface::TrackbarCallback(int value, void *data) {
+	if (data != NULL) {
+		KinectInterface *owner = (KinectInterface *)data;
+
+		if (owner->dbg_src_img != NULL && owner->dbg_bw_img != NULL) {
+			RangeThreshold(*owner->dbg_src_img, owner->dbg_lower_thresh, owner->dbg_upper_thresh, *owner->dbg_bw_img);
+			cv::imshow("test", *owner->dbg_bw_img);
+		}
+	}
+}
+
+void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &found, bool debug_window) {
 
 	// As it turns out, the blur operation is far more effective than just filtering erroneous values
 	// TODO: compare to/combine with averaging frames and other blur methods/sizes, and windowed filtering?
+	cv::Mat srcub;
+	cv::medianBlur(src, srcub, 5);
+	cv::imshow("blurred", srcub);
 	cv::Mat srcb;
-	cv::medianBlur(src, srcb, 5);
-	cv::imshow("blurred", srcb);
-
-
+	CalibrateDepth(srcub, srcb);
 	cv::Mat bw;
 
 	// Convert to binary image using simple threshold.
-	cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
+	//cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
 	// Convert to binary image using Canny edge detection
 	//cv::Canny(srcb, bw, 40, 70, 3);
+	// Convert to binary image using range threshold.
+	RangeThreshold(srcb, dbg_lower_thresh, dbg_upper_thresh, bw);
+
+	// Block the corner zones that we are using as bases
+	cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
+	cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
 
 	cv::imshow("test", bw);
-	cv::waitKey();
+
+	dbg_bw_img = &bw;
+	dbg_src_img = &srcb;
+
+	cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+	cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+
+	bool timedOut = (cv::waitKey() == -1);
+
+	if (timedOut) {
+		return;
+	}
 
 	cv::Mat contourImg = bw.clone();
 	std::vector<std::vector<cv::Point>> contoursFound;

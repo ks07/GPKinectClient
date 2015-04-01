@@ -17,7 +17,12 @@ public:
 	KinectInterface();
 	~KinectInterface();
 
-	void RunOpenCV(cv::Mat &gray, std::vector<cv::RotatedRect> &found);
+	void CalibrateDepth(cv::Mat &src, cv::Mat &corrected);
+
+	static void RangeThreshold(cv::InputArray src, byte low, byte high, cv::OutputArray dst);
+	static void TrackbarCallback(int value, void *data);
+
+	void RunOpenCV(cv::Mat &gray, std::vector<cv::RotatedRect> &found, bool debug_window = false);
 
 	bool initKinect();
 
@@ -32,6 +37,11 @@ public:
 	static const int depthMin = 923;
 	static const int depthMax = 1307;
 	static const int depthRange = depthMax - depthMin;
+
+	int dbg_lower_thresh = 0;
+	int dbg_upper_thresh = 170;
+	cv::Mat *dbg_bw_img = NULL;
+	cv::Mat *dbg_src_img = NULL;
 
 private:
 

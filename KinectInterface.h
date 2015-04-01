@@ -17,7 +17,7 @@ public:
 	KinectInterface();
 	~KinectInterface();
 
-	void CalibrateDepth(cv::Mat &src, cv::Mat &corrected);
+	void CalibrateDepth(cv::Mat &calib_src);
 
 	static void RangeThreshold(cv::InputArray src, byte low, byte high, cv::OutputArray dst);
 	static void TrackbarCallback(int value, void *data);
@@ -55,5 +55,7 @@ private:
 	DWORD depthFrameTimeoutMillis = 15 * 1000;
 
 	short frameCounter = 0;
+
+	cv::Mat calibMask;
 };
 

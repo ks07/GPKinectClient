@@ -212,24 +212,24 @@ void KinectInterface::filterArray(int *depthArray, int *filteredData)
 }
 
 // Capture an image of the empty play area, and use this to create a mask that we can apply whenever a frame is processed.
-void KinectInterface::CalibrateDepth(cv::Mat &src, cv::Mat &corrected) {
+void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 	try {
 		// We need a signed matrix here for difference values.
-		cv::Mat calibrationMask(src.size(), CV_16SC1);
+		cv::Mat calibrationMask(calib_src.size(), CV_16SC1);
 
 		// Take the average pixel value as correct. TODO: Is this better suited to median? Or perhaps restrict to only a small central area of the image?
-		auto correct = cv::mean(src);
-		cv::Mat meanMat(src.size(), CV_16SC1, correct);
+		auto correct = cv::mean(calib_src);
+		cv::Mat meanMat(calib_src.size(), CV_8UC1, correct);
 
 		// Compute the mask as a simple difference operation. TODO: Is this linear scaling appropriate? Should it be non-linear somehow?
-		cv::subtract(src, meanMat, calibrationMask, cv::noArray(), CV_16SC1);
+		cv::subtract(meanMat, calib_src, calibrationMask, cv::noArray(), CV_16SC1);
 
 		// Debug display matrix where we offset the calibration mask into an unsigned range.
-		cv::Mat displayMask(src.size(), CV_8UC1);
+		cv::Mat displayMask(calib_src.size(), CV_8UC1);
 		cv::subtract(meanMat, calibrationMask, displayMask, cv::noArray(), CV_8UC1);
 
 
-		cv::imshow("SRC", src);
+		cv::imshow("SRC", calib_src);
 		cv::imshow("MEAN", meanMat);
 		cv::imshow("CALIB", calibrationMask);
 		cv::imshow("DISPM", displayMask);
@@ -238,23 +238,34 @@ void KinectInterface::CalibrateDepth(cv::Mat &src, cv::Mat &corrected) {
 		// Take a test image
 		cv::Mat transposed;
 		{
-			uint8_t *imgarr = (uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t));
-			getKinectData(NULL, imgarr, true);
-			cv::Mat input(480, 640, CV_8U, imgarr);
-			cv::transpose(input, transposed);
-			input.release();
-			free(imgarr);
+			//uint8_t *imgarr = (uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t));
+			//getKinectData(NULL, imgarr, true);
+			//cv::Mat input(480, 640, CV_8U, imgarr);
+			//cv::transpose(input, transposed);
+			//input.release();
+			//free(imgarr);
+
+			cv::Mat src = cv::imread("floor.png");
+			// Convert to grayscale
+			cv::Mat input;
+			cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
+			src.release();
+			transposed = input;
 		}
 
 		// Hopefully we should get the mean back. (or a clean-ish source)
 		cv::Mat correctedImage;
-		cv::subtract(transposed, calibrationMask, correctedImage, cv::noArray(), CV_16SC1);
+		cv::add(transposed, calibrationMask, correctedImage, cv::noArray(), CV_8UC1);
 
 		cv::Mat unsignedCorrected;
+		cv::Mat corrected;
+		cv::Mat errorDisp;
 		correctedImage.convertTo(corrected, CV_8UC1);
+		cv::absdiff(meanMat, corrected, errorDisp);
 
 		cv::imshow("CORRECTED", correctedImage);
 		cv::imshow("UCORRECTED", corrected);
+		cv::imshow("CORRDIFF", errorDisp);
 		cv::waitKey();
 	}
 	catch (cv::Exception &e)
@@ -289,7 +300,7 @@ void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &foun
 	cv::medianBlur(src, srcub, 5);
 	cv::imshow("blurred", srcub);
 	cv::Mat srcb;
-	CalibrateDepth(srcub, srcb);
+	CalibrateDepth(srcub);
 	cv::Mat bw;
 
 	// Convert to binary image using simple threshold.

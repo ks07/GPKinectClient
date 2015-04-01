@@ -1,11 +1,18 @@
 #include <opencv2/opencv.hpp>
-//#include <vector>
-//#include <algorithm>
 
 #include "KinectInterface.h"
 
 KinectInterface::KinectInterface()
+	: calibMask(width * height, CV_16SC1, 0)
+	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
+}
+
+
+KinectInterface::KinectInterface(cv::Mat calib_src)
+	: imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
+{
+	CalibrateDepth(calib_src);
 }
 
 
@@ -17,6 +24,7 @@ KinectInterface::~KinectInterface()
 		sensor = NULL;
 	}
 #endif
+	free(imgarr);
 }
 
 
@@ -43,7 +51,7 @@ bool KinectInterface::initKinect() {
 }
 
 
-bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking) {
+bool KinectInterface::getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, bool blocking, int *rawdest) {
 #ifndef DISABLE_KINECT
 	NUI_IMAGE_FRAME imageFrame;
 	NUI_LOCKED_RECT LockedRect;
@@ -119,6 +127,42 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *sc
 	return false;
 #endif
 }
+
+
+bool KinectInterface::GetWrappedData(cv::Mat &out, bool blocking, std::string fallback) {
+	if (getKinectData(imgarr, blocking))
+	{
+		cv::Mat input(480, 640, CV_8UC1, imgarr);
+
+		// X and Y are inverted in the game world, so we should tranpose here
+		cv::transpose(input, out);
+		input.release();
+
+		return true;
+	}
+	else if (fallback != "")
+	{
+		std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
+		cv::Mat src = cv::imread(fallback);
+		// Convert to grayscale, assuming input image is a standard color image
+		cv::Mat input;
+		cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
+		src.release();
+
+		// X and Y are inverted in the game world, so we should tranpose here if the input image is not already
+		if (input.size().height == height && input.size().width == width) {
+			cv::transpose(input, out);
+			input.release();
+		}
+
+		// Again, the image should be transposed.
+		assert(out.size().height == width && out.size().width == height);
+		return false;
+	}
+
+	return false;
+}
+
 
 // Filter out 0's to the mode of the surrounding pixels
 void KinectInterface::filterArray(int *depthArray, int *filteredData)
@@ -214,67 +258,16 @@ void KinectInterface::filterArray(int *depthArray, int *filteredData)
 // Capture an image of the empty play area, and use this to create a mask that we can apply whenever a frame is processed.
 void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 	try {
-		// We need a signed matrix here for difference values.
-		cv::Mat calibrationMask(calib_src.size(), CV_16SC1);
-
 		// Take the average pixel value as correct. TODO: Is this better suited to median? Or perhaps restrict to only a small central area of the image?
 		auto correct = cv::mean(calib_src);
 		cv::Mat meanMat(calib_src.size(), CV_8UC1, correct);
 
 		// Compute the mask as a simple difference operation. TODO: Is this linear scaling appropriate? Should it be non-linear somehow?
-		cv::subtract(meanMat, calib_src, calibrationMask, cv::noArray(), CV_16SC1);
-
-		// Debug display matrix where we offset the calibration mask into an unsigned range.
-		cv::Mat displayMask(calib_src.size(), CV_8UC1);
-		cv::subtract(meanMat, calibrationMask, displayMask, cv::noArray(), CV_8UC1);
-
-
-		cv::imshow("SRC", calib_src);
-		cv::imshow("MEAN", meanMat);
-		cv::imshow("CALIB", calibrationMask);
-		cv::imshow("DISPM", displayMask);
-
-		calibMask = calibrationMask;
-
-		cv::waitKey();
-
-		// Take a test image
-		cv::Mat transposed;
-		{
-			//uint8_t *imgarr = (uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t));
-			//getKinectData(NULL, imgarr, true);
-			//cv::Mat input(480, 640, CV_8U, imgarr);
-			//cv::transpose(input, transposed);
-			//input.release();
-			//free(imgarr);
-
-			cv::Mat src = cv::imread("floor.png");
-			// Convert to grayscale
-			cv::Mat input;
-			cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
-			src.release();
-			transposed = input;
-		}
-
-		// Hopefully we should get the mean back. (or a clean-ish source)
-		cv::Mat correctedImage;
-		cv::add(transposed, calibrationMask, correctedImage, cv::noArray(), CV_8UC1);
-
-		cv::Mat unsignedCorrected;
-		cv::Mat corrected;
-		cv::Mat errorDisp;
-		correctedImage.convertTo(corrected, CV_8UC1);
-		cv::absdiff(meanMat, displayMask, errorDisp);
-
-		cv::imshow("CORRECTED", correctedImage);
-		cv::imshow("UCORRECTED", corrected);
-		cv::imshow("CORRDIFF", errorDisp);
-		cv::waitKey();
+		cv::subtract(meanMat, calib_src, calibMask, cv::noArray(), CV_16SC1);
 	}
 	catch (cv::Exception &e)
 	{
 		std::cout << e.what() << std::endl;
-
 	}
 }
 
@@ -288,6 +281,15 @@ void KinectInterface::RangeThreshold(cv::InputArray src, byte low, byte high, cv
 	cv::inRange(src, lowerBound, upperBound, dst);
 }
 
+
+void KinectInterface::PreprocessDepthFrame(cv::Mat &raw, cv::Mat &out) {
+	cv::Mat blurred;
+	// As it turns out, the blur operation is far more effective than just filtering erroneous values
+	// TODO: compare to/combine with averaging frames and other blur methods/sizes, and windowed filtering?
+	cv::medianBlur(raw, blurred, 5);
+	ApplyCalibration(blurred, out);
+}
+
 void KinectInterface::TrackbarCallback(int value, void *data) {
 	if (data != NULL) {
 		KinectInterface *owner = (KinectInterface *)data;
@@ -299,15 +301,12 @@ void KinectInterface::TrackbarCallback(int value, void *data) {
 	}
 }
 
-void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &found, bool debug_window) {
+void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &found, bool debug_window) {
 
-	// As it turns out, the blur operation is far more effective than just filtering erroneous values
-	// TODO: compare to/combine with averaging frames and other blur methods/sizes, and windowed filtering?
-	cv::Mat srcub;
-	cv::medianBlur(src, srcub, 5);
-	cv::imshow("blurred", srcub);
+	// Apply some preprocessing steps to the input frame.
 	cv::Mat srcb;
-	CalibrateDepth(srcub);
+	PreprocessDepthFrame(raw, srcb);
+
 	cv::Mat bw;
 
 	// Convert to binary image using simple threshold.
@@ -329,7 +328,7 @@ void KinectInterface::RunOpenCV(cv::Mat &src, std::vector<cv::RotatedRect> &foun
 	cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
 	cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
 
-	bool timedOut = (cv::waitKey() == -1);
+	bool timedOut = (cv::waitKey(10) == -1);
 
 	if (timedOut) {
 		return;

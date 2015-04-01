@@ -19,23 +19,23 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
-	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	// TODO: Do we really want to be doing this here?
 	// TODO: Handle init errors
 	initSuccess = kinect->initKinect();
-	if (initSuccess) {
-		while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
-		std::cout << std::endl;
-	}
+	//if (initSuccess) {
+	//	while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
+	//	std::cout << std::endl;
+	//}
+	cv::Mat calib_src;
+	kinect->GetWrappedData(calib_src, true, "floor.png");
+	kinect->CalibrateDepth(calib_src);
+	calib_src.release();
 }
 
 OCVSlaveProtocol::~OCVSlaveProtocol()
 {
 	delete kinect;
-	if (imgarr != NULL) {
-		free(imgarr);
-	}
 }
 
 bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)

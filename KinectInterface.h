@@ -15,6 +15,9 @@ class KinectInterface
 {
 public:
 	KinectInterface();
+
+	KinectInterface(cv::Mat calib_src);
+
 	~KinectInterface();
 
 	void CalibrateDepth(cv::Mat &calib_src);
@@ -26,8 +29,7 @@ public:
 
 	bool initKinect();
 
-	// TODO: Decide what to do wrt debug viewing of Kinect input
-	bool getKinectData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking);
+	bool GetWrappedData(cv::Mat &out, bool blocking = true, std::string fallback = "");
 
 	void filterArray(int *depthArray, int *filteredData);
 
@@ -46,6 +48,7 @@ public:
 	cv::Mat *dbg_src_img = NULL;
 
 private:
+	uint8_t *imgarr = NULL;
 
 #ifndef DISABLE_KINECT
 	// Kinect variables
@@ -59,5 +62,10 @@ private:
 	short frameCounter = 0;
 
 	cv::Mat calibMask;
+
+	void PreprocessDepthFrame(cv::Mat &raw, cv::Mat &out);
+
+	// TODO: Decide what to do wrt debug viewing of Kinect input
+	bool getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, bool blocking = true, int *rawdest = NULL);
 };
 

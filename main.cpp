@@ -94,12 +94,18 @@ int nottherealmain(int argc, char **argv)
     // List of Images to be augmented on the Marker
 
     IplImage* display_img1 = cvLoadImage("image_ar.jpg");
-    if (!display_img1)
-        return -1;
+
+	if (!display_img1)
+	{
+		printf("img null\n");
+		return -1;
+	}
 
     capture = cvCaptureFromCAM(0);
-    if (!capture)           	// Check for Camera capture
-        return -1;
+	if (!capture) {          	// Check for Camera capture
+		printf("No camera\n");
+		return -1;
+	}
 
     cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
 
@@ -143,6 +149,7 @@ int nottherealmain(int argc, char **argv)
     dstQuad[3].y = CV_AR_MARKER_SIZE;
 
     bool init = false;			// Flag to identify initialization of Image objects
+	printf("Here\n");
 
 
 
@@ -180,7 +187,7 @@ int nottherealmain(int argc, char **argv)
     double t;			// variable to calculate timing
 
     int marker_id;
-    int marker_num;
+    int marker_num = -1;
     bool valid_marker_found;
 
     //For Recording Output
@@ -532,10 +539,10 @@ int nottherealmain(int argc, char **argv)
                             // Note	: The Marker ID is valid in any 4 Direction of looking
 
                             cv_ARgetMarkerID_16b(marker_transposed_img, marker_id);	// Get Marker ID
-                            cv_ARgetMarkerNum(marker_id, marker_num);		// Get Marker Number Corrosponding to ID
+                            cv_ARgetMarkerNum(marker_id, marker_num);				// Get Marker Number Corrosponding to ID
                             //HERE BE ALL THE INTERESTING BITS
 
-                            if (marker_num == 1)
+                            if (marker_num >= 0 && marker_num <= 2)
                             {
                                 valid_marker_found = true;
                             }
@@ -561,7 +568,7 @@ int nottherealmain(int argc, char **argv)
 
                             }
 
-                            if (marker_num >= 0)				// Now check if still marker is valid
+							if (marker_num >= 0 && marker_num <= 2)				// Now check if still marker is valid
                             {
                                 valid_marker_found = true;
                             }
@@ -575,12 +582,8 @@ int nottherealmain(int argc, char **argv)
                                 // Note	: Marker number used to make it easlier to change 'Display' image accordingly, 
                                 // Also Note the jugglery to augment due to OpenCV's limiation passing two images of DIFFERENT sizes  
                                 // while using "cvWarpPerspective".  
-
-                                //if (marker_num == 1)
-                                {
-                                    std::cout << "Marker: " << marker_id << std::endl;
-                                    cvShowImage( "Test", marker_transposed_img);
-                                }
+                                std::cout << "Marker: " << marker_num << std::endl;
+                                cvShowImage( "Test", marker_transposed_img);
                             }
                             valid_marker_found = false;
 
@@ -869,28 +872,34 @@ void cv_ARgetMarkerID_16b(IplImage* img, int& marker_id)
 
 void cv_ARgetMarkerNum(int marker_id, int& marker_num)
 {
-    marker_num = -1;
     switch (marker_id)
     {
-        case 0xC800:
-        case 0x3100:
-        case 0x0013:
-        case 0x8C00:
-            marker_num = 0;
-            break;
         case 0xE41B:
         case 0x39C9:
         case 0xD827:
         case 0x939C:
             marker_num = 1;
-            break;
+			break;
         case 63729:
         case 47790:
         case 36639:
         case 30045:
             marker_num = 2;
             break;
+		case 0xC800:		//So it turns out it *REALLY* likes this particular one
+		case 0x3100:		//To the point where it will recognise it from an almost blank wall
+		case 0x0013:		//Keeping this here to ensure we don't use the same marker in the future.
+		case 0x8C00:
+			marker_num = -1;
+			break;
+		default:
+			marker_num = -1;
+			break;
     }
+	if (marker_num != -1)
+	{
+		printf("Marker found: %d\n", marker_num);
+	}
 }
 
 void cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4], double scale)

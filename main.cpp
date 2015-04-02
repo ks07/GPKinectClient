@@ -64,6 +64,18 @@ int main(int argc, char* argv[])
 	client.Connect();
 
 	return 0;*/
+	openARCleanup(	capture,
+					img,
+					marker_transposed_img,
+					gray,
+					thres,
+					prcs_flg,
+					display_img1,
+					warp_matrix);
+
+	printf("Here at the end\n");
+
+	return 0;
 }
 
 
@@ -156,7 +168,7 @@ int openARSetup(CvCapture* &capture,
 	return 0;
 }
 
-int openARCleanup(	CvCapture* capture,
+void openARCleanup(	CvCapture* capture,
 					IplImage*  img,
 					IplImage*  marker_transposed_img,
 					IplImage*  gray,
@@ -314,7 +326,7 @@ int openARLoop(CvCapture* capture,
         cvZero(prcs_flg);		// Reset all Process flags
 
 
-        for (int y = 0; y < thres->height; ++y)	//Start full scan of the image by incrementing y
+        for (int y = 0; y < thres->height; ++y)		//Start full scan of the image by incrementing y
         {
             uchar* prsnt = (uchar*)(thres->imageData + y * thres->widthStep);
             uchar* pntr_flg = (uchar*)(prcs_flg->imageData + y * prcs_flg->widthStep);  // pointer to access the present value of pixel in Process flag

@@ -18,14 +18,14 @@ int openARSetup(CvCapture* &capture,
 				IplImage*  &prcs_flg,
 				IplImage*  &display_img1,
 				CvMat*     &warp_matrix);
-int openARCleanup(CvCapture* capture,
- 				  IplImage*  img,
-				  IplImage*  marker_transposed_img,
-				  IplImage*  gray,
-				  IplImage*  thres,
-				  IplImage*  prcs_flg,
-				  IplImage*  display_img1,
-				  CvMat*     warp_matrix);
+void openARCleanup(CvCapture* capture,
+ 					IplImage*  img,
+					IplImage*  marker_transposed_img,
+					IplImage*  gray,
+					IplImage*  thres,
+					IplImage*  prcs_flg,
+					IplImage*  display_img1,
+					CvMat*     warp_matrix);
 void cv_adjustBox(int x, int y, CvPoint& A, CvPoint& B);
 bool cv_checkCorner(char* img_data, int img_width, int x, int y);
 void cv_updateCorner(CvPoint quad, CvPoint box, double& dist, CvPoint& corner);

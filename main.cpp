@@ -26,7 +26,34 @@ double cv_distanceFormula(double c[3], CvPoint p);					// Perpendicular distance
 
 int main(int argc, char* argv[])
 {
-    nottherealmain(argc, argv);
+	CvCapture* capture = 0;
+	IplImage*  img = 0;
+	IplImage*  marker_transposed_img;
+	IplImage*  gray = 0;
+	IplImage*  thres = 0;
+	IplImage*  prcs_flg = 0;		// Process flag to flag whether the current pixel is already processed as part blob detection
+	IplImage*  display_img1;
+	CvMat*     warp_matrix;
+
+	while (openARSetup( capture,
+						img,
+						marker_transposed_img,
+						gray,
+						thres,
+						prcs_flg,
+						display_img1,
+						warp_matrix) == -1)
+	{
+		printf("Camera and stuffs is not setup\n");
+	}
+	openARLoop(	capture,
+				img,
+				marker_transposed_img,
+				gray,
+				thres,
+				prcs_flg,
+				display_img1,
+				warp_matrix);
 	/*if (argc != 3)
 	{
 		std::cerr << "Usage: client <host> <port>" << std::endl;
@@ -84,16 +111,18 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Author  : Bharath Prabhuswamy
 //______________________________________________________________________________________
 
-// Start of Main Loop
-//------------------------------------------------------------------------------------------------------------------------
-int nottherealmain(int argc, char **argv)
+
+int openARSetup(CvCapture* &capture,
+				IplImage*  &img,
+				IplImage*  &marker_transposed_img,
+				IplImage*  &gray,
+				IplImage*  &thres,
+				IplImage*  &prcs_flg,
+				IplImage*  &display_img1,
+				CvMat*     &warp_matrix)
 {
-    CvCapture* capture = 0;
-    IplImage* img = 0;
-
-    // List of Images to be augmented on the Marker
-
-    IplImage* display_img1 = cvLoadImage("image_ar.jpg");
+	// List of Images to be augmented on the Marker
+	display_img1 = cvLoadImage("image_ar.jpg");
 
 	if (!display_img1)
 	{
@@ -101,21 +130,61 @@ int nottherealmain(int argc, char **argv)
 		return -1;
 	}
 
-    capture = cvCaptureFromCAM(0);
+	capture = cvCaptureFromCAM(0);
 	if (!capture) {          	// Check for Camera capture
 		printf("No camera\n");
 		return -1;
 	}
 
-    cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
+	// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
+	marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
+	
+	cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
 
-    //	cvNamedWindow("Test",CV_WINDOW_AUTOSIZE);	// Test window to push any visuals during debugging
+	//	cvNamedWindow("Test",CV_WINDOW_AUTOSIZE);	// Test window to push any visuals during debugging
+	
+	img = cvQueryFrame(capture);	// Query for the frame
+	if (!img)		// Exit if camera frame is not obtained
+		return -1;
 
-    IplImage* gray = 0;
-    IplImage* thres = 0;
-    IplImage* prcs_flg = 0;		// Process flag to flag whether the current pixel is already processed as part blob detection
+	// Creation of Intermediate 'Image' Objects required later
+	gray = cvCreateImage(cvGetSize(img), 8, 1);			// To hold Grayscale Image
+	thres = cvCreateImage(cvGetSize(img), 8, 1);		// To hold OTSU thresholded Image
+	prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);		// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
+	warp_matrix = cvCreateMat(3, 3, CV_32FC1);         // Warp matrix to store perspective data
 
+	return 0;
+}
 
+int openARCleanup(	CvCapture* capture,
+					IplImage*  img,
+					IplImage*  marker_transposed_img,
+					IplImage*  gray,
+					IplImage*  thres,
+					IplImage*  prcs_flg,
+					IplImage*  display_img1,
+					CvMat*     warp_matrix)
+{
+	cvDestroyWindow("Camera");			// Release various parameters
+
+	cvReleaseImage(&img);
+	cvReleaseImage(&gray);
+	cvReleaseImage(&thres);
+	cvReleaseImage(&prcs_flg);
+	cvReleaseImage(&marker_transposed_img);
+	cvReleaseImage(&display_img1);
+	cvReleaseMat(&warp_matrix);
+}
+
+int openARLoop(CvCapture* capture,
+				IplImage* img,
+				IplImage* marker_transposed_img,
+				IplImage* gray,
+				IplImage* thres,
+				IplImage* prcs_flg,
+				IplImage* display_img1,
+				CvMat*    warp_matrix)
+{
     int q, i;					// Intermidiate variables
     int h, w;					// Variables to store Image Height and Width
 
@@ -134,9 +203,6 @@ int nottherealmain(int argc, char **argv)
 
     CvPoint P, Q, R, S;			// Corners of the Marker
 
-    // Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
-    IplImage* marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
-
     CvPoint2D32f srcQuad[4], dstQuad[4];	// Warp matrix Parameters: Source, Destination
 
     dstQuad[0].x = 0;			// Positions of Marker image (to where it has to be transposed)
@@ -148,31 +214,7 @@ int nottherealmain(int argc, char **argv)
     dstQuad[3].x = CV_AR_MARKER_SIZE;
     dstQuad[3].y = CV_AR_MARKER_SIZE;
 
-    bool init = false;			// Flag to identify initialization of Image objects
-	printf("Here\n");
-
-
-
-    //Step	: Capture a frame from Camera for creating and initializing manipulation variables
-    //Info	: Inbuit functions from OpenCV
-    //Note	: 
-
-    if (init == false)
-    {
-        img = cvQueryFrame(capture);	// Query for the frame
-        if (!img)		// Exit if camera frame is not obtained
-            return -1;
-
-        // Creation of Intermediate 'Image' Objects required later
-        gray = cvCreateImage(cvGetSize(img), 8, 1);		// To hold Grayscale Image
-        thres = cvCreateImage(cvGetSize(img), 8, 1);		// To hold OTSU thresholded Image
-        prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);	// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
-
-
-        init = true;
-    }
-
-    int* clr_flg = (int*)malloc(img->width * sizeof(int));	// Array representing elements of entire current row to assign Blob number
+    int* clr_flg = (int*)malloc(img->width * sizeof(int));		// Array representing elements of entire current row to assign Blob number
     int* clrprev_flg = (int*)malloc(img->width * sizeof(int));	// Array representing elements of entire previous row to assign Blob number
 
     h = img->height;		// Height and width of the Image
@@ -180,9 +222,6 @@ int nottherealmain(int argc, char **argv)
 
     bool corner_flag = false;      				// Flag to check whether the current pixel is a Edgel or not
     CvPoint corners[10000];         			// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
-
-    CvMat* warp_matrix = cvCreateMat(3, 3, CV_32FC1);         // Warp matrix to store perspective data
-
 
     double t;			// variable to calculate timing
 
@@ -582,7 +621,10 @@ int nottherealmain(int argc, char **argv)
                                 // Note	: Marker number used to make it easlier to change 'Display' image accordingly, 
                                 // Also Note the jugglery to augment due to OpenCV's limiation passing two images of DIFFERENT sizes  
                                 // while using "cvWarpPerspective".  
-                                std::cout << "Marker: " << marker_num << std::endl;
+                                printf("Marker: %d,\t", marker_num);
+								printf("Pos: (%d, %d)\n", (cornerA.x + cornerB.x) / 2, (cornerA.y + cornerB.y) / 2);
+								cv_ARaugmentImage(display_img1, img, srcQuad, CV_AR_DISP_SCALE_FIT); // Send the Image to display, Camera Image and Position of the Marker
+								cv_ARoutlineMarker(cornerA, cornerB, P, Q, R, S, img);
                                 cvShowImage( "Test", marker_transposed_img);
                             }
                             valid_marker_found = false;
@@ -618,18 +660,6 @@ int nottherealmain(int argc, char **argv)
         key = cvWaitKey(1);			// OPENCV: wait for 1ms before accessing next frame
 
     }						// End of 'while' loop
-
-    cvDestroyWindow("Camera");			// Release various parameters
-
-    cvReleaseImage(&img);
-    cvReleaseImage(&gray);
-    cvReleaseImage(&thres);
-    cvReleaseImage(&prcs_flg);
-    cvReleaseImage(&marker_transposed_img);
-
-    cvReleaseImage(&display_img1);
-
-    cvReleaseMat(&warp_matrix);
 
     //cvReleaseVideoWriter( &writer );
     free(clr_flg);
@@ -896,10 +926,6 @@ void cv_ARgetMarkerNum(int marker_id, int& marker_num)
 			marker_num = -1;
 			break;
     }
-	if (marker_num != -1)
-	{
-		printf("Marker found: %d\n", marker_num);
-	}
 }
 
 void cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4], double scale)

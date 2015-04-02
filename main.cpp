@@ -197,7 +197,6 @@ int openARLoop(CvCapture* capture,
 				IplImage* display_img1,
 				CvMat*    warp_matrix)
 {
-    int q, i;					// Intermidiate variables
     int h, w;					// Variables to store Image Height and Width
 
     int ihist[256];				// Array to store Histogram values
@@ -248,7 +247,7 @@ int openARLoop(CvCapture* capture,
     int key = 0;
     while (key != 'q')		// While loop to query for Camera frame
     {
-        t = cvGetTickCount();
+        t = (double)cvGetTickCount();
 
         //Step	: Capture Image from Camera
         //Info	: Inbuit function from OpenCV
@@ -567,14 +566,14 @@ int openARLoop(CvCapture* capture,
 
                             // CvPoint to CvPoint2D32f conversion for Warp Matrix calculation
 
-                            srcQuad[0].x = P.x;				// Positions of the Marker in Image | "Deformed" Marker
-                            srcQuad[0].y = P.y;
-                            srcQuad[1].x = Q.x;
-                            srcQuad[1].y = Q.y;
-                            srcQuad[2].x = S.x;
-                            srcQuad[2].y = S.y;
-                            srcQuad[3].x = R.x;
-                            srcQuad[3].y = R.y;
+                            srcQuad[0].x = (float) P.x;				// Positions of the Marker in Image | "Deformed" Marker
+							srcQuad[0].y = (float) P.y;
+							srcQuad[1].x = (float) Q.x;
+							srcQuad[1].y = (float) Q.y;
+							srcQuad[2].x = (float) S.x;
+							srcQuad[2].y = (float) S.y;
+							srcQuad[3].x = (float) R.x;
+							srcQuad[3].y = (float) R.y;
 
 
                             // Note: dstQuad[4];				// Positions to where Marker has to be transposed to | "Aligned" Marker
@@ -602,14 +601,14 @@ int openARLoop(CvCapture* capture,
                                 // If 4-Corners are not obtained from (+) region partitioning ; try to calculate corners from (x) region partitioning
                                 cv_ARgetMarkerPoints2(c, corners, cornerA, cornerB, P, Q, R, S);
 
-                                srcQuad[0].x = P.x;			// Positions of the Marker in Image | "Deformed" Marker
-                                srcQuad[0].y = P.y;
-                                srcQuad[1].x = Q.x;
-                                srcQuad[1].y = Q.y;
-                                srcQuad[2].x = S.x;
-                                srcQuad[2].y = S.y;
-                                srcQuad[3].x = R.x;
-                                srcQuad[3].y = R.y;
+								srcQuad[0].x = (float)P.x;			// Positions of the Marker in Image | "Deformed" Marker
+								srcQuad[0].y = (float)P.y;
+								srcQuad[1].x = (float)Q.x;
+								srcQuad[1].y = (float)Q.y;
+								srcQuad[2].x = (float)S.x;
+								srcQuad[2].y = (float)S.y;
+								srcQuad[3].x = (float)R.x;
+								srcQuad[3].y = (float)R.y;
 
                                 cvGetPerspectiveTransform(srcQuad, dstQuad, warp_matrix);		// Warp Matrix Calculations
                                 cvWarpPerspective(thres, marker_transposed_img, warp_matrix);
@@ -946,7 +945,6 @@ void cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4]
     IplImage* cpy_img = cvCreateImage(cvGetSize(img), 8, 3);	// To hold Camera Image Mask 
     IplImage* neg_img = cvCreateImage(cvGetSize(img), 8, 3);	// To hold Marker Image Mask
     IplImage* blank;						// To assist Marker Pass
-    IplImage temp;
 
     blank = cvCreateImage(cvGetSize(display), 8, 3);
     cvZero(blank);
@@ -960,28 +958,28 @@ void cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4]
         dispQuad[0].x = 0;				// Positions of Display image (not yet transposed)
         dispQuad[0].y = 0;
 
-        dispQuad[1].x = display->width;
+		dispQuad[1].x = (float)display->width;
         dispQuad[1].y = 0;
 
         dispQuad[2].x = 0;
-        dispQuad[2].y = display->height;
+		dispQuad[2].y = (float)display->height;
 
-        dispQuad[3].x = display->width;
-        dispQuad[3].y = display->height;
+		dispQuad[3].x = (float)display->width;
+		dispQuad[3].y = (float)display->height;
     }
     else
     {
-        dispQuad[0].x = (display->width / 2) - (CV_AR_MARKER_SIZE / scale);			// Positions of Display image (not yet transposed)
-        dispQuad[0].y = (display->height / 2) - (CV_AR_MARKER_SIZE / scale);
+		dispQuad[0].x = (float)((display->width  / 2) - (CV_AR_MARKER_SIZE / scale));			// Positions of Display image (not yet transposed)
+		dispQuad[0].y = (float)((display->height / 2) - (CV_AR_MARKER_SIZE / scale));
 
-        dispQuad[1].x = (display->width / 2) + (CV_AR_MARKER_SIZE / scale);
-        dispQuad[1].y = (display->height / 2) - (CV_AR_MARKER_SIZE / scale);
+		dispQuad[1].x = (float)((display->width  / 2) + (CV_AR_MARKER_SIZE / scale));
+		dispQuad[1].y = (float)((display->height / 2) - (CV_AR_MARKER_SIZE / scale));
 
-        dispQuad[2].x = (display->width / 2) - (CV_AR_MARKER_SIZE / scale);
-        dispQuad[2].y = (display->height / 2) + (CV_AR_MARKER_SIZE / scale);
+		dispQuad[2].x = (float)((display->width  / 2) - (CV_AR_MARKER_SIZE / scale));
+		dispQuad[2].y = (float)((display->height / 2) + (CV_AR_MARKER_SIZE / scale));
 
-        dispQuad[3].x = (display->width / 2) + (CV_AR_MARKER_SIZE / scale);
-        dispQuad[3].y = (display->height / 2) + (CV_AR_MARKER_SIZE / scale);
+		dispQuad[3].x = (float)((display->width  / 2) + (CV_AR_MARKER_SIZE / scale));
+		dispQuad[3].y = (float)((display->height / 2) + (CV_AR_MARKER_SIZE / scale));
     }
 
     cvGetPerspectiveTransform(dispQuad, srcQuad, disp_warp_matrix);	// Caclculate the Warp Matrix to which Display Image has to be transformed

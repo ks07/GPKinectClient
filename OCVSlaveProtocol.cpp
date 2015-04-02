@@ -20,8 +20,6 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	, kinect(new KinectInterface())
 	, dimgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
-	// TODO: Do we really want to be doing this here?
-	// TODO: Handle init errors
 	initSuccess = kinect->initKinect();
 	if (initSuccess) {
 		while (!kinect->getKinectDepthData(NULL, dimgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!

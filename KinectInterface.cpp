@@ -362,6 +362,19 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 		}
 		return;
 	}
+	else if (keyPressed == 'n') {
+		// n# => Switch to preset box def.
+		keyPressed = cv::waitKey();
+		if (keyPressed >= '0' && keyPressed <= '9') {
+			int n = keyPressed - '0';
+			if (n < boxes.size()) {
+				BoxLimits sel = boxes.at(n);
+				dbg_lower_thresh = sel.low;
+				dbg_upper_thresh = sel.high;
+			}
+		}
+		return;
+	}
 
 	bool timedOut = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k');
 

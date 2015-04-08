@@ -48,6 +48,7 @@ public:
 	cv::Mat *dbg_src_img = NULL;
 
 private:
+	// Byte array to store raw pixel values.
 	uint8_t *imgarr = NULL;
 
 #ifndef DISABLE_KINECT

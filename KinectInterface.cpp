@@ -344,6 +344,14 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 		dbg_lower_thresh++;
 		dbg_upper_thresh++;
 	}
+	else if (keyPressed == 'r') {
+		// r => recalibrate sensor
+		cv::Mat calib_src;
+		if (GetWrappedData(calib_src, true)) {
+			CalibrateDepth(calib_src);
+		}
+		return;
+	}
 
 	bool timedOut = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k');
 

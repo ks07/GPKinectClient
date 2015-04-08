@@ -13,7 +13,7 @@
 
 class KinectInterface
 {
-
+	// TODO: We might want to include some geometry information, e.g. a min area.
 	struct BoxLimits
 	{
 		BoxLimits(uint8_t low, uint8_t high)
@@ -36,7 +36,9 @@ public:
 	static void RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst);
 	static void TrackbarCallback(int value, void *data);
 
-	void RunOpenCV(cv::Mat &gray, std::vector<cv::RotatedRect> &found, bool debug_window = false);
+	void ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
+
+	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
 
 	void DebugLoop();
 

@@ -45,9 +45,10 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
 	found.clear();
 
 	cv::Mat input;
-	retval = kinect->GetWrappedData(input, true, "floor.png");
-	kinect->DebugLoop(); // TODO: Not this
+	retval = kinect->GetWrappedData(input, true, "mixbox.png");
+	//kinect->DebugLoop(); // TODO: Not this
 	//kinect->RunOpenCV(input, found);
+	kinect->ProcessDepthImage(input, found, true); // TODO: Not quite this
 	input.release();
 
 	std::cout << "Found" << found.size() << std::endl;

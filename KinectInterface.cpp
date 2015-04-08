@@ -7,8 +7,6 @@ KinectInterface::KinectInterface()
 	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	DefineBoxes();
-	std::cout << boxes.size() << std::endl;
-	std::cout << boxes.size() << std::endl;
 }
 
 
@@ -21,8 +19,12 @@ KinectInterface::KinectInterface(cv::Mat calib_src)
 
 void KinectInterface::DefineBoxes()
 {
-	boxes.emplace_back(95, 106); // Vans box
-	boxes.emplace_back(158, 170); // IC book
+	//boxes.emplace_back(95, 106); // Vans box
+	//boxes.emplace_back(158, 170); // IC book
+	boxes.emplace_back(97, 108); // Vans box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	boxes.emplace_back(112, 123); // Large shoe box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	boxes.emplace_back(130, 141); // Book stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	boxes.emplace_back(36, 47); // Build-a-comp box stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
 }
 
 
@@ -295,7 +297,7 @@ void KinectInterface::RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat 
 	cv::inRange(src, lowerBound, upperBound, dst);
 }
 
-
+// Applies preprocessing to a depth frame to prepare it for box detection. Currently blurs and calibrates.
 void KinectInterface::PreprocessDepthFrame(cv::Mat &raw, cv::Mat &out) {
 	cv::Mat blurred;
 	// As it turns out, the blur operation is far more effective than just filtering erroneous values
@@ -316,111 +318,183 @@ void KinectInterface::TrackbarCallback(int value, void *data) {
 }
 
 void KinectInterface::DebugLoop() {
-	bool contLoop = true;
+	bool run = true;
 
-	cv::Mat bw;
+	while (run) {
+		bool contLoop = true;
 
-	while (contLoop) {
-		cv::Mat raw;
-		GetWrappedData(raw, true, "floor.png");
-		
-		// -----------------------------
-		// RunOpenCV(input, found);
-		// -----------------------------
+		cv::Mat bw;
 
-		// Apply some preprocessing steps to the input frame.
-		cv::Mat srcb;
-		PreprocessDepthFrame(raw, srcb);
+		while (contLoop) {
+			cv::Mat raw;
+			GetWrappedData(raw, true, "mixbox.png");
 
-		// Convert to binary image using simple threshold.
-		//cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
-		// Convert to binary image using Canny edge detection
-		//cv::Canny(srcb, bw, 40, 70, 3);
+			// -----------------------------
+			// RunOpenCV(input, found);
+			// -----------------------------
+
+			// Apply some preprocessing steps to the input frame.
+			cv::Mat srcb;
+			PreprocessDepthFrame(raw, srcb);
+
+			// Convert to binary image using simple threshold.
+			//cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
+			// Convert to binary image using Canny edge detection
+			//cv::Canny(srcb, bw, 40, 70, 3);
+			// Convert to binary image using range threshold.
+			RangeThreshold(srcb, dbg_lower_thresh, dbg_upper_thresh, bw);
+
+			// Block the corner zones that we are using as bases
+			cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
+			cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
+
+			cv::imshow("test", bw);
+
+			dbg_bw_img = &bw;
+			dbg_src_img = &srcb;
+
+			cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+			cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+
+			int keyPressed = cv::waitKey(10);
+
+			if (keyPressed == 'j') {
+				// j => adjust both scrollbars down/left
+				dbg_lower_thresh--;
+				dbg_upper_thresh--;
+			}
+			else if (keyPressed == 'k') {
+				// j => adjust both scrollbars down/left
+				dbg_lower_thresh++;
+				dbg_upper_thresh++;
+			}
+			else if (keyPressed == 'r') {
+				// r => recalibrate sensor
+				cv::Mat calib_src;
+				if (GetWrappedData(calib_src, true)) {
+					CalibrateDepth(calib_src);
+				}
+				return;
+			}
+			else if (keyPressed == 'n') {
+				// n# => Switch to preset box def.
+				int nKey = cv::waitKey();
+				if (nKey >= '0' && nKey <= '9') {
+					unsigned int n = nKey - '0';
+					if (n < boxes.size()) {
+						BoxLimits sel = boxes.at(n);
+						dbg_lower_thresh = sel.low;
+						dbg_upper_thresh = sel.high;
+					}
+				}
+				return;
+			}
+			else if (keyPressed == 'q') {
+				run = false;
+			}
+
+			contLoop = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k' || keyPressed == 'r' || keyPressed == 'n');
+
+			// END RUNOPENCV
+
+			raw.release();
+		}
+
+		if (!bw.empty()) {
+			// Ensure we don't try passing a failed input for whatever reason
+			std::vector<cv::RotatedRect> found;
+			FindRectanglesInLayer(bw, found, true);
+			std::cout << "Found" << found.size() << std::endl;
+		}
+	}
+}
+
+// TODO: Rename to frame?
+void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRect> &found, const bool debug_window) {
+	// We must be given a greyscale input.
+	assert(raw.type() == CV_8UC1);
+
+	// Clear out found before we start filling it, allows us to reuse the same one.
+	found.clear();
+
+	// Apply some preprocessing steps to the input frame.
+	cv::Mat src;
+	PreprocessDepthFrame(raw, src);
+
+	// Need to split the image into layers and process each layer for rectangles. Currently, we expect only a single rectangle in each layer (TODO: see issue #9)
+	for (std::vector<BoxLimits>::iterator boxit = boxes.begin(); boxit != boxes.end(); ++boxit) {
+		// TODO: Deduplicate this, also in debug loop. Add to preprocess?
+		cv::Mat bw;
+
 		// Convert to binary image using range threshold.
-		RangeThreshold(srcb, dbg_lower_thresh, dbg_upper_thresh, bw);
+		RangeThreshold(src, boxit->low, boxit->high, bw);
 
 		// Block the corner zones that we are using as bases
 		cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
 		cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
 
-		cv::imshow("test", bw);
+		// Run the OpenCV detection on this thresholded layer.
+		int layerCnt = FindRectanglesInLayer(bw, found, debug_window);
 
-		dbg_bw_img = &bw;
-		dbg_src_img = &srcb;
-
-		cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
-		cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
-
-		int keyPressed = cv::waitKey(10);
-
-		if (keyPressed == 'j') {
-			// j => adjust both scrollbars down/left
-			dbg_lower_thresh--;
-			dbg_upper_thresh--;
+		if (debug_window) {
+			std::cout << "Layer added " << layerCnt << " objects" << std::endl;
 		}
-		else if (keyPressed == 'k') {
-			// j => adjust both scrollbars down/left
-			dbg_lower_thresh++;
-			dbg_upper_thresh++;
-		}
-		else if (keyPressed == 'r') {
-			// r => recalibrate sensor
-			cv::Mat calib_src;
-			if (GetWrappedData(calib_src, true)) {
-				CalibrateDepth(calib_src);
-			}
-			return;
-		}
-		else if (keyPressed == 'n') {
-			// n# => Switch to preset box def.
-			int nKey = cv::waitKey();
-			if (nKey >= '0' && nKey <= '9') {
-				int n = nKey - '0';
-				if (n < boxes.size()) {
-					BoxLimits sel = boxes.at(n);
-					dbg_lower_thresh = sel.low;
-					dbg_upper_thresh = sel.high;
-				}
-			}
-			return;
-		}
-
-		contLoop = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k' || keyPressed == 'r' || keyPressed == 'n');
-
-		// END RUNOPENCV
-
-		raw.release();
 	}
 
-	if (!bw.empty()) {
-		// Ensure we don't try passing a failed input for whatever reason
-		std::vector<cv::RotatedRect> found;
-		RunOpenCV(bw, found, true);
-		std::cout << "Found" << found.size() << std::endl;
+	if (debug_window) {
+		std::cout << "Final object count: " << found.size() << std::endl;
+		
+		// Display all the found geometries over the original image.
+		// TODO: This needs to come out. (duplicated from layer process)
+		cv::Mat outputdisp;
+		cv::cvtColor(raw, outputdisp, cv::COLOR_GRAY2BGR);
+
+		// Colour to draw the boxes in.
+		const cv::Scalar yellow = cv::Scalar(100, 255, 255);
+
+		// Use the min area bounding rectangle to get us a quick approx that we can use. TODO: This is not ideal in the slightest if our bounding contour is off... we should check them!
+		for (std::vector<cv::RotatedRect>::iterator rectit = found.begin(); rectit != found.end(); ++rectit)
+		{
+			cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
+			rectit->points(vertices);
+			for (int i = 0; i < 4; i++) {
+				cv::line(outputdisp, vertices[i], vertices[(i + 1) % 4], yellow);
+			}
+		}
+
+		cv::imshow("Combined Layer Output", outputdisp);
+		cv::waitKey();
+		cv::destroyAllWindows();
 	}
 }
 
-void KinectInterface::RunOpenCV(cv::Mat &bw, std::vector<cv::RotatedRect> &found, bool debug_window) {
+int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window) {
+
+	int foundStartSize = found.size();
 
 	cv::Mat contourImg = bw.clone(); // TODO: Possibly unnecessary
 	std::vector<std::vector<cv::Point>> contoursFound;
 	std::vector<std::vector<cv::Point>> approxFakeContours; // TODO: Rename
-	std::vector<cv::Point> approxFound;
-	//cv::OutputArray heirarchy;
-	std::vector<cv::Vec4i> heirarchy;
+	std::vector<cv::Vec4i> heirarchy; // Unused when in RETR_EXTERNAL mode
 
 	cv::findContours(contourImg, contoursFound, heirarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_KCOS);
 
+	//if (debug_window) {
 	cv::Mat contourImage(bw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
 	cv::Scalar colors[3];
 	colors[0] = cv::Scalar(255, 0, 0);
 	colors[1] = cv::Scalar(0, 255, 0);
 	colors[2] = cv::Scalar(0, 0, 255);
+	//}
+
 	for (size_t idx = 0; idx < contoursFound.size(); idx++) {
-		std::cout << contoursFound.at(idx).size() << std::endl;
-		cv::drawContours(contourImage, contoursFound, idx, colors[idx % 3]);
+		if (debug_window) {
+			std::cout << contoursFound.at(idx).size() << std::endl;
+			cv::drawContours(contourImage, contoursFound, idx, colors[idx % 3]);
+		}
 
 		// Approximate a closed poly from contours
+		std::vector<cv::Point> approxFound;
 		cv::approxPolyDP(cv::Mat(contoursFound.at(idx)), approxFound, 20, true);
 
 		// Stick this closed poly into the list of them
@@ -473,4 +547,7 @@ void KinectInterface::RunOpenCV(cv::Mat &bw, std::vector<cv::RotatedRect> &found
 		cv::waitKey();
 		cv::destroyAllWindows();
 	}
+
+	// Return the number of geometries added by this call.
+	return found.size() - foundStartSize;
 }

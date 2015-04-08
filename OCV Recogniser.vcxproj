@@ -129,7 +129,7 @@
     <ClCompile Include="KinectInterface.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OCVSlaveProtocol.cpp" />
-    <ClCompile Include="openAR.cpp" />
+    <ClCompile Include="OpenARScanner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GPKinectAPI\OCVSPacket.h" />
@@ -141,6 +141,7 @@
     <ClInclude Include="KinectInterface.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="OCVSlaveProtocol.h" />
+    <ClInclude Include="OpenARScanner.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

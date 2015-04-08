@@ -42,7 +42,7 @@
     <ClCompile Include="GPKinectAPI\OCVSPacketScanReq.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="openAR.cpp">
+    <ClCompile Include="OpenARScanner.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -72,6 +72,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="GPKinectAPI\OCVSPacketScanReq.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="OpenARScanner.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

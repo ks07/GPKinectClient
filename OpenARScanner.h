@@ -22,23 +22,11 @@ class OpenARScanner
 	public:
 	OpenARScanner();
 	~OpenARScanner();
-	int openARLoop(CvCapture* capture,
-		IplImage* img,
-		IplImage* marker_transposed_img,
-		IplImage* gray,
-		IplImage* thres,
-		IplImage* prcs_flg,
-		IplImage* display_img1,
-		CvMat*     warp_matrix);	
-	
-	int openARSetup(CvCapture* &capture,
-		IplImage*  &img,
-		IplImage*  &marker_transposed_img,
-		IplImage*  &gray,
-		IplImage*  &thres,
-		IplImage*  &prcs_flg,
-		IplImage*  &display_img1,
-		CvMat*     &warp_matrix);
+	int openARLoop();
+
+	private:
+	void OpenARScanner::getHistogram(int* ihist);
+	int OpenARScanner::OTSU(int ihist[256], float hist_val[256]);
 
 	void cv_adjustBox(int x, int y, CvPoint& A, CvPoint& B);
 	bool cv_checkCorner(char* img_data, int img_width, int x, int y);

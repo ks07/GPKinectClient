@@ -13,6 +13,17 @@
 
 class KinectInterface
 {
+
+	struct BoxLimits
+	{
+		BoxLimits(uint8_t low, uint8_t high)
+			: low(low)
+			, high(high)
+		{}
+		uint8_t low;
+		uint8_t high;
+	};
+
 public:
 	KinectInterface();
 
@@ -48,6 +59,9 @@ public:
 	cv::Mat *dbg_src_img = NULL;
 
 private:
+	void DefineBoxes();
+	std::vector<BoxLimits> boxes;
+
 	// Byte array to store raw pixel values.
 	uint8_t *imgarr = NULL;
 

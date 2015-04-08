@@ -6,13 +6,23 @@ KinectInterface::KinectInterface()
 	: calibMask(width * height, CV_16SC1, 0)
 	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
+	DefineBoxes();
+	std::cout << boxes.size() << std::endl;
+	std::cout << boxes.size() << std::endl;
 }
 
 
 KinectInterface::KinectInterface(cv::Mat calib_src)
 	: imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
+	DefineBoxes();
 	CalibrateDepth(calib_src);
+}
+
+void KinectInterface::DefineBoxes()
+{
+	boxes.emplace_back(95, 106); // Vans box
+	boxes.emplace_back(158, 170); // IC book
 }
 
 

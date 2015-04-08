@@ -306,6 +306,16 @@ void KinectInterface::PreprocessDepthFrame(cv::Mat &raw, cv::Mat &out) {
 	ApplyCalibration(blurred, out);
 }
 
+// Applies stage 2 of depth frame preprocessing, creating a thresholded layer. Masks (fixed) bases.
+void KinectInterface::LayerPreprocessDepthFrame(cv::Mat &src, cv::Mat &out, byte low, byte high) {
+	// Convert to binary image using range threshold.
+	RangeThreshold(src, low, high, out);
+
+	// Block the corner zones that we are using as bases
+	cv::rectangle(out, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
+	cv::rectangle(out, cv::Rect(out.size().width - 24, out.size().height - 32, 24, 32), 0, CV_FILLED);
+}
+
 void KinectInterface::TrackbarCallback(int value, void *data) {
 	if (data != NULL) {
 		KinectInterface *owner = (KinectInterface *)data;
@@ -336,20 +346,11 @@ void KinectInterface::DebugLoop() {
 			// Apply some preprocessing steps to the input frame.
 			cv::Mat srcb;
 			PreprocessDepthFrame(raw, srcb);
-
-			// Convert to binary image using simple threshold.
-			//cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
-			// Convert to binary image using Canny edge detection
-			//cv::Canny(srcb, bw, 40, 70, 3);
-			// Convert to binary image using range threshold.
-			RangeThreshold(srcb, dbg_lower_thresh, dbg_upper_thresh, bw);
-
-			// Block the corner zones that we are using as bases
-			cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
-			cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
+			LayerPreprocessDepthFrame(srcb, bw, dbg_lower_thresh, dbg_upper_thresh);
 
 			cv::imshow("test", bw);
 
+			// TODO: We really want to avoid these if possible.
 			dbg_bw_img = &bw;
 			dbg_src_img = &srcb;
 
@@ -378,7 +379,7 @@ void KinectInterface::DebugLoop() {
 			}
 			else if (keyPressed == 'n') {
 				// n# => Switch to preset box def.
-				int nKey = cv::waitKey();
+				int nKey = cv::waitKey(30 * 1000);
 				if (nKey >= '0' && nKey <= '9') {
 					unsigned int n = nKey - '0';
 					if (n < boxes.size()) {
@@ -390,6 +391,7 @@ void KinectInterface::DebugLoop() {
 				return;
 			}
 			else if (keyPressed == 'q') {
+				// q => Quit
 				run = false;
 			}
 
@@ -407,6 +409,9 @@ void KinectInterface::DebugLoop() {
 			std::cout << "Found" << found.size() << std::endl;
 		}
 	}
+
+	// Make sure all windows are closed.
+	cv::destroyAllWindows();
 }
 
 // TODO: Rename to frame?
@@ -423,15 +428,10 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRec
 
 	// Need to split the image into layers and process each layer for rectangles. Currently, we expect only a single rectangle in each layer (TODO: see issue #9)
 	for (std::vector<BoxLimits>::iterator boxit = boxes.begin(); boxit != boxes.end(); ++boxit) {
-		// TODO: Deduplicate this, also in debug loop. Add to preprocess?
 		cv::Mat bw;
 
-		// Convert to binary image using range threshold.
-		RangeThreshold(src, boxit->low, boxit->high, bw);
-
-		// Block the corner zones that we are using as bases
-		cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
-		cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
+		// Perform the binary conversion.
+		LayerPreprocessDepthFrame(src, bw, boxit->low, boxit->high);
 
 		// Run the OpenCV detection on this thresholded layer.
 		int layerCnt = FindRectanglesInLayer(bw, found, debug_window);

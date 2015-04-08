@@ -154,6 +154,10 @@ bool KinectInterface::GetWrappedData(cv::Mat &out, bool blocking, std::string fa
 			cv::transpose(input, out);
 			input.release();
 		}
+		else {
+			out = input;
+			input.release();
+		}
 
 		// Again, the image should be transposed.
 		assert(out.size().height == width && out.size().width == height);
@@ -271,11 +275,11 @@ void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 	}
 }
 
-void KinectInterface::ApplyCalibration(cv::Mat src, cv::Mat dest) {
+void KinectInterface::ApplyCalibration(cv::Mat &src, cv::Mat &dest) {
 	cv::add(src, calibMask, dest, cv::noArray(), CV_8UC1);
 }
 
-void KinectInterface::RangeThreshold(cv::InputArray src, byte low, byte high, cv::OutputArray dst) {
+void KinectInterface::RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst) {
 	cv::Mat upperBound(src.size(), CV_8UC1, high);
 	cv::Mat lowerBound(src.size(), CV_8UC1, low);
 	cv::inRange(src, lowerBound, upperBound, dst);
@@ -328,7 +332,20 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 	cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
 	cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
 
-	bool timedOut = (cv::waitKey(10) == -1);
+	int keyPressed = cv::waitKey(10);
+
+	if (keyPressed == 'j') {
+		// j => adjust both scrollbars down/left
+		dbg_lower_thresh--;
+		dbg_upper_thresh--;
+	}
+	else if (keyPressed == 'k') {
+		// j => adjust both scrollbars down/left
+		dbg_lower_thresh++;
+		dbg_upper_thresh++;
+	}
+
+	bool timedOut = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k');
 
 	if (timedOut) {
 		return;
@@ -343,8 +360,8 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 
 	cv::findContours(contourImg, contoursFound, heirarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_KCOS);
 
-	cv::Mat contourImage(src.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-	cv::Mat approxImage(src.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+	cv::Mat contourImage(raw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+	cv::Mat approxImage(raw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
 	cv::Scalar colors[3];
 	colors[0] = cv::Scalar(255, 0, 0);
 	colors[1] = cv::Scalar(0, 255, 0);
@@ -371,7 +388,7 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 	cv::waitKey();
 
 	cv::Mat outputdisp;
-	cv::cvtColor(src, outputdisp, cv::COLOR_GRAY2BGR);
+	cv::cvtColor(raw, outputdisp, cv::COLOR_GRAY2BGR);
 
 	// Use the min area bounding rectangle to get us a quick approx that we can use. TODO: This is not ideal in the slightest if our bounding contour is off... we should check them!
 	for (size_t idx = 0; idx < approxFakeContours.size(); idx++)

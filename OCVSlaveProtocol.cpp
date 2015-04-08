@@ -29,6 +29,7 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	//}
 	cv::Mat calib_src;
 	kinect->GetWrappedData(calib_src, true, "floor.png");
+	std::cout << 'wut\n';
 	kinect->CalibrateDepth(calib_src);
 	calib_src.release();
 }
@@ -43,48 +44,10 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
 	bool retval = false;
 	found.clear();
 
-	if (initSuccess && kinect->getKinectData(NULL, imgarr, true))
-	{
-		cv::Mat input(480, 640, CV_8U, imgarr);
-		//cv::imshow("src", input);
-		//cv::waitKey();
-
-		// X and Y are inverted in the game world, so we should tranpose here
-		cv::Mat transposed;
-		cv::transpose(input, transposed);
-		input.release();
-
-		kinect->RunOpenCV(transposed, found);
-		transposed.release();
-		return true;
-	}
-	else if (FIXED_FALLBACK)
-	{
-		std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
-		cv::Mat src = cv::imread("floor.png");
-		// Convert to grayscale
-		cv::Mat input;
-		cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
-		src.release();
-
-		// X and Y are inverted in the game world, so we should tranpose here if the input image is not already
-		if (input.size().height == kinect->height && input.size().width == kinect->width) {
-			cv::Mat transposed;
-			cv::transpose(input, transposed);
-			input.release();
-			input = transposed;
-		}
-
-		// Again, the image should be transposed.
-		assert(input.size().height == kinect->width && input.size().width == kinect->height);
-		kinect->RunOpenCV(input, found);
-		input.release();
-		return false;
-	}
-	else
-	{
-		return false;
-	}
+	cv::Mat input;
+	retval = kinect->GetWrappedData(input, true, "floor.png");
+	kinect->RunOpenCV(input, found);
+	input.release();
 
 	std::cout << "Found" << found.size() << std::endl;
 

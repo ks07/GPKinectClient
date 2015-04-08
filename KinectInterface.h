@@ -22,7 +22,7 @@ public:
 
 	void CalibrateDepth(cv::Mat &calib_src);
 
-	static void RangeThreshold(cv::InputArray src, byte low, byte high, cv::OutputArray dst);
+	static void RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst);
 	static void TrackbarCallback(int value, void *data);
 
 	void RunOpenCV(cv::Mat &gray, std::vector<cv::RotatedRect> &found, bool debug_window = false);
@@ -33,7 +33,7 @@ public:
 
 	void filterArray(int *depthArray, int *filteredData);
 
-	void ApplyCalibration(cv::Mat src, cv::Mat dest);
+	void ApplyCalibration(cv::Mat &src, cv::Mat &dest);
 
 	static const int width = 640;
 	static const int height = 480;

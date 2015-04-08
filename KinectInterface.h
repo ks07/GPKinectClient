@@ -38,6 +38,8 @@ public:
 
 	void RunOpenCV(cv::Mat &gray, std::vector<cv::RotatedRect> &found, bool debug_window = false);
 
+	void DebugLoop();
+
 	bool initKinect();
 
 	bool GetWrappedData(cv::Mat &out, bool blocking = true, std::string fallback = "");

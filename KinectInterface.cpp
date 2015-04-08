@@ -315,84 +315,103 @@ void KinectInterface::TrackbarCallback(int value, void *data) {
 	}
 }
 
-void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &found, bool debug_window) {
-
-	// Apply some preprocessing steps to the input frame.
-	cv::Mat srcb;
-	PreprocessDepthFrame(raw, srcb);
+void KinectInterface::DebugLoop() {
+	bool contLoop = true;
 
 	cv::Mat bw;
 
-	// Convert to binary image using simple threshold.
-	//cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
-	// Convert to binary image using Canny edge detection
-	//cv::Canny(srcb, bw, 40, 70, 3);
-	// Convert to binary image using range threshold.
-	RangeThreshold(srcb, dbg_lower_thresh, dbg_upper_thresh, bw);
+	while (contLoop) {
+		cv::Mat raw;
+		GetWrappedData(raw, true, "floor.png");
+		
+		// -----------------------------
+		// RunOpenCV(input, found);
+		// -----------------------------
 
-	// Block the corner zones that we are using as bases
-	cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
-	cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
+		// Apply some preprocessing steps to the input frame.
+		cv::Mat srcb;
+		PreprocessDepthFrame(raw, srcb);
 
-	cv::imshow("test", bw);
+		// Convert to binary image using simple threshold.
+		//cv::threshold(srcb, bw, 170, 255, CV_THRESH_BINARY_INV);
+		// Convert to binary image using Canny edge detection
+		//cv::Canny(srcb, bw, 40, 70, 3);
+		// Convert to binary image using range threshold.
+		RangeThreshold(srcb, dbg_lower_thresh, dbg_upper_thresh, bw);
 
-	dbg_bw_img = &bw;
-	dbg_src_img = &srcb;
+		// Block the corner zones that we are using as bases
+		cv::rectangle(bw, cv::Rect(0, 0, 24, 32), 0, CV_FILLED);
+		cv::rectangle(bw, cv::Rect(bw.size().width - 24, bw.size().height - 32, 24, 32), 0, CV_FILLED);
 
-	cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
-	cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+		cv::imshow("test", bw);
 
-	int keyPressed = cv::waitKey(10);
+		dbg_bw_img = &bw;
+		dbg_src_img = &srcb;
 
-	if (keyPressed == 'j') {
-		// j => adjust both scrollbars down/left
-		dbg_lower_thresh--;
-		dbg_upper_thresh--;
-	}
-	else if (keyPressed == 'k') {
-		// j => adjust both scrollbars down/left
-		dbg_lower_thresh++;
-		dbg_upper_thresh++;
-	}
-	else if (keyPressed == 'r') {
-		// r => recalibrate sensor
-		cv::Mat calib_src;
-		if (GetWrappedData(calib_src, true)) {
-			CalibrateDepth(calib_src);
+		cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+		cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
+
+		int keyPressed = cv::waitKey(10);
+
+		if (keyPressed == 'j') {
+			// j => adjust both scrollbars down/left
+			dbg_lower_thresh--;
+			dbg_upper_thresh--;
 		}
-		return;
-	}
-	else if (keyPressed == 'n') {
-		// n# => Switch to preset box def.
-		keyPressed = cv::waitKey();
-		if (keyPressed >= '0' && keyPressed <= '9') {
-			int n = keyPressed - '0';
-			if (n < boxes.size()) {
-				BoxLimits sel = boxes.at(n);
-				dbg_lower_thresh = sel.low;
-				dbg_upper_thresh = sel.high;
+		else if (keyPressed == 'k') {
+			// j => adjust both scrollbars down/left
+			dbg_lower_thresh++;
+			dbg_upper_thresh++;
+		}
+		else if (keyPressed == 'r') {
+			// r => recalibrate sensor
+			cv::Mat calib_src;
+			if (GetWrappedData(calib_src, true)) {
+				CalibrateDepth(calib_src);
 			}
+			return;
 		}
-		return;
+		else if (keyPressed == 'n') {
+			// n# => Switch to preset box def.
+			int nKey = cv::waitKey();
+			if (nKey >= '0' && nKey <= '9') {
+				int n = nKey - '0';
+				if (n < boxes.size()) {
+					BoxLimits sel = boxes.at(n);
+					dbg_lower_thresh = sel.low;
+					dbg_upper_thresh = sel.high;
+				}
+			}
+			return;
+		}
+
+		contLoop = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k' || keyPressed == 'r' || keyPressed == 'n');
+
+		// END RUNOPENCV
+
+		raw.release();
 	}
 
-	bool timedOut = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k');
-
-	if (timedOut) {
-		return;
+	if (!bw.empty()) {
+		// Ensure we don't try passing a failed input for whatever reason
+		std::vector<cv::RotatedRect> found;
+		RunOpenCV(bw, found, true);
+		std::cout << "Found" << found.size() << std::endl;
 	}
+}
 
-	cv::Mat contourImg = bw.clone();
+void KinectInterface::RunOpenCV(cv::Mat &bw, std::vector<cv::RotatedRect> &found, bool debug_window) {
+
+	cv::Mat contourImg = bw.clone(); // TODO: Possibly unnecessary
 	std::vector<std::vector<cv::Point>> contoursFound;
-	std::vector<std::vector<cv::Point>> approxFakeContours;
+	std::vector<std::vector<cv::Point>> approxFakeContours; // TODO: Rename
 	std::vector<cv::Point> approxFound;
 	//cv::OutputArray heirarchy;
 	std::vector<cv::Vec4i> heirarchy;
 
 	cv::findContours(contourImg, contoursFound, heirarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_TC89_KCOS);
 
-	cv::Mat contourImage(raw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
-	cv::Mat approxImage(raw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+	cv::Mat contourImage(bw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
 	cv::Scalar colors[3];
 	colors[0] = cv::Scalar(255, 0, 0);
 	colors[1] = cv::Scalar(0, 255, 0);
@@ -408,18 +427,26 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 		approxFakeContours.push_back(std::vector<cv::Point>(approxFound));
 	}
 
-	for (size_t idx = 0; idx < approxFakeContours.size(); idx++)
-	{
-		cv::drawContours(approxImage, approxFakeContours, idx, colors[idx % 3]);
+	if (debug_window) {
+		cv::Mat approxImage(bw.size(), CV_8UC3, cv::Scalar(0, 0, 0));
+
+		// Draw the contours onto a black background in cycling colours.
+		for (size_t idx = 0; idx < approxFakeContours.size(); idx++)
+		{
+			cv::drawContours(approxImage, approxFakeContours, idx, colors[idx % 3]);
+		}
+
+		cv::imshow("test", contourImage);
+		cv::waitKey();
+		cv::imshow("test", approxImage);
+		cv::waitKey();
 	}
 
-	cv::imshow("test", contourImage);
-	cv::waitKey();
-	cv::imshow("test", approxImage);
-	cv::waitKey();
-
-	cv::Mat outputdisp;
-	cv::cvtColor(raw, outputdisp, cv::COLOR_GRAY2BGR);
+	// TODO: This needs to come out.
+	cv::Mat outputdisp; // Uninit'ed if we aren't in debug
+	if (debug_window) {
+		cv::cvtColor(bw, outputdisp, cv::COLOR_GRAY2BGR);
+	}
 
 	// Use the min area bounding rectangle to get us a quick approx that we can use. TODO: This is not ideal in the slightest if our bounding contour is off... we should check them!
 	for (size_t idx = 0; idx < approxFakeContours.size(); idx++)
@@ -427,19 +454,23 @@ void KinectInterface::RunOpenCV(cv::Mat &raw, std::vector<cv::RotatedRect> &foun
 		// Only look at contours with 4 corners
 		if (approxFakeContours.at(idx).size() == 4)
 		{
-			cv::Scalar yellow = cv::Scalar(100, 255, 255);
 			cv::RotatedRect box = cv::minAreaRect(approxFakeContours.at(idx));
-			found.push_back(box); // TODO: emplace_back!
-			cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
-			box.points(vertices);
-			for (int i = 0; i < 4; i++) {
-				cv::line(outputdisp, vertices[i], vertices[(i + 1) % 4], yellow);
+			found.push_back(box);
+
+			if (debug_window) {
+				cv::Scalar yellow = cv::Scalar(100, 255, 255);
+				cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
+				box.points(vertices);
+				for (int i = 0; i < 4; i++) {
+					cv::line(outputdisp, vertices[i], vertices[(i + 1) % 4], yellow);
+				}
 			}
-			//cv::rectangle(approxImage, box, yellow);
 		}
 	}
 
-	cv::imshow("test bbox", outputdisp);
-	cv::waitKey();
-	cv::destroyAllWindows();
+	if (debug_window) {
+		cv::imshow("test bbox", outputdisp);
+		cv::waitKey();
+		cv::destroyAllWindows();
+	}
 }

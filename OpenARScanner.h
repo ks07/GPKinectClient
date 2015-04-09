@@ -2,7 +2,14 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <math.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
+
+typedef struct {
+	std::vector<CvPoint> centres;
+	std::vector<int> values;
+	int count;
+} ARMarkers;
 
 class OpenARScanner
 {
@@ -18,15 +25,15 @@ class OpenARScanner
 	IplImage*  display_img1;
 	CvMat*     warp_matrix;
 
-
 	public:
 	OpenARScanner();
 	~OpenARScanner();
 	int openARLoop();
+	ARMarkers scanImage(IplImage* img);
 
 	private:
-	void OpenARScanner::getHistogram(int* ihist);
-	int OpenARScanner::OTSU(int ihist[256], float hist_val[256]);
+	void getHistogram(int* ihist);
+	int OTSU(int ihist[256], float hist_val[256]);
 
 	void cv_adjustBox(int x, int y, CvPoint& A, CvPoint& B);
 	bool cv_checkCorner(char* img_data, int img_width, int x, int y);

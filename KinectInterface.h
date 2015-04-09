@@ -23,7 +23,7 @@ public:
 
 	// TODO: Decide what to do wrt debug viewing of Kinect input
 	bool getKinectDepthData(/*GLubyte* dest,*/ int *rawdest, uint8_t *scaled_dest, bool blocking);
-    bool getKinectRGBData(int* dest, bool blocking);
+	bool getKinectRGBData(uint8_t* dest, bool blocking);
 
 	void filterArray(int *depthArray, int *filteredData);
 

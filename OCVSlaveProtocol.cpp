@@ -18,6 +18,7 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
+	, scanner(new OpenARScanner())
 	, dimgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	initSuccess = kinect->initKinect();
@@ -83,12 +84,14 @@ bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
 	return retval;
 }
 
-/*bool OCVSlaveProtocol::CallRGBVision(std::vector<cv::RotatedRect> &found)
+bool OCVSlaveProtocol::CallRGBVision(ARMarkers &found)
 {
     bool retval = false;
-    found.clear();
+    found.count = 0;
+	found.centres.clear();
+	found.values.clear();
 
-    if (initSuccess && kinect->getKinectDepthData(NULL, dimgarr, true))
+    if (initSuccess && kinect->getKinectRGBData(cimgarr, true))
     {
         cv::Mat input(480, 640, CV_8U, dimgarr);
         //cv::imshow("src", input);
@@ -99,7 +102,7 @@ bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
         cv::transpose(input, transposed);
         input.release();
 
-        kinect->RunOpenCV(transposed, found);
+		scanner->scanImage(new IplImage(transposed));
         transposed.release();
         return true;
     }
@@ -117,7 +120,7 @@ bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
         cv::transpose(input, transposed);
         input.release();
 
-        kinect->RunOpenCV(transposed, found);
+		scanner->scanImage(new IplImage(transposed));
         transposed.release();
         return false;
     }
@@ -126,10 +129,10 @@ bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
         return false;
     }
 
-    std::cout << "Found" << found.size() << std::endl;
+    std::cout << "Found" << found.count << std::endl;
 
     return retval;
-}*/
+}
 
 void OCVSlaveProtocol::Connect()
 {
@@ -138,6 +141,7 @@ void OCVSlaveProtocol::Connect()
 		try
 		{
 			std::vector<cv::RotatedRect> found;
+			ARMarkers markers;
 
 			OCVSPacketChallenge pktChallenge;
 
@@ -179,8 +183,8 @@ void OCVSlaveProtocol::Connect()
                     //HERE BE MARKERS
                     while (false /*NOTASKEDFORSCAN*/)
                     {
-                        //Get and send markers
-                    }
+						//scanner->scanImage(kinect->getKinectRGBData());
+					}
 
 					len = socket.read_some(asio::buffer(buf), error);
 					if (error == asio::error::eof)

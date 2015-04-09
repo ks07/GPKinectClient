@@ -119,7 +119,7 @@ bool KinectInterface::getKinectDepthData(/*GLubyte* dest,*/ int *rawdest, uint8_
 #endif
 }
 
-bool KinectInterface::getKinectRGBData(int* dest, bool blocking) {
+bool KinectInterface::getKinectRGBData(uint8_t* dest, bool blocking) {
 #ifndef DISABLE_KINECT
     NUI_IMAGE_FRAME imageFrame;
     NUI_LOCKED_RECT LockedRect;
@@ -146,7 +146,7 @@ bool KinectInterface::getKinectRGBData(int* dest, bool blocking) {
     }
     //cout << dmax << ' ' << dmin << std::endl;
     texture->UnlockRect(0);
-    sensor->NuiImageStreamReleaseFrame(depthStream, &imageFrame);
+	sensor->NuiImageStreamReleaseFrame(rgbStream, &imageFrame);
     return true;
 #else
     return false;

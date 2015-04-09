@@ -11,7 +11,7 @@ public:
 
 	void Connect();
 
-	bool CallVision(std::vector<cv::RotatedRect> &found);
+	bool CallVision(std::vector<cv::RotatedRect> &found, bool debug = false);
 
 private:
 	const char * const host;

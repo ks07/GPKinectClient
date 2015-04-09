@@ -7,6 +7,7 @@
 #include "GPKinectAPI/OCVSPacketChallenge.h"
 #include "GPKinectAPI/OCVSPacketScanHeader.h"
 #include "GPKinectAPI/OCVSPacketScanChunk.h"
+#include "GPKinectAPI\OCVSPacketScanReq.h"
 
 #include "OCVSlaveProtocol.h"
 
@@ -39,7 +40,7 @@ OCVSlaveProtocol::~OCVSlaveProtocol()
 	delete kinect;
 }
 
-bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
+bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, bool debug)
 {
 	bool retval = false;
 	found.clear();
@@ -47,8 +48,7 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
 	cv::Mat input;
 	retval = kinect->GetWrappedData(input, true, "mixbox.png");
 	//kinect->DebugLoop(); // TODO: Not this
-	//kinect->RunOpenCV(input, found);
-	kinect->ProcessDepthImage(input, found, true); // TODO: Not quite this
+	kinect->ProcessDepthImage(input, found, debug); // TODO: Not quite this
 	input.release();
 
 	std::cout << "Found" << found.size() << std::endl;
@@ -114,14 +114,17 @@ void OCVSlaveProtocol::Connect()
 						throw asio::system_error(asio::error_code());
 					}
 
+					OCVSPacketScanReq scanReq(buf, pktChallenge.GetPackedSize());
+
+					bool debug = scanReq.DebugRequested();
+
 					////////////////////////////////////////
 					// Attempt to get some chunks to send //
 					////////////////////////////////////////
 
 					std::cout << "Request received, ACK'ing and responding." << std::endl;
 
-
-					CallVision(found);
+					CallVision(found, debug);
 
 					size_t chunk_count = found.size();
 

@@ -327,7 +327,8 @@ void KinectInterface::TrackbarCallback(int value, void *data) {
 	}
 }
 
-void KinectInterface::DebugLoop() {
+
+void KinectInterface::DebugCalibrationLoop() {
 	bool run = true;
 
 	while (run) {
@@ -414,6 +415,64 @@ void KinectInterface::DebugLoop() {
 	cv::destroyAllWindows();
 }
 
+
+void KinectInterface::DebugInteractiveLoop(std::vector<cv::RotatedRect> &found) {
+	bool contLoop = true;
+
+	cv::Mat disp;
+
+	while (contLoop) {
+		cv::Mat raw;
+		GetWrappedData(raw, true, "mixbox.png");
+
+		ProcessDepthImage(raw, found, false);
+		DrawDetectedGeometry(raw, disp, found);
+
+		cv::imshow("test", disp);
+
+		int keyPressed = cv::waitKey(10);
+
+		// TODO: Add a stepping mode?
+		if (keyPressed == 'r') {
+			// r => recalibrate sensor
+			cv::Mat calib_src;
+			if (GetWrappedData(calib_src, true)) {
+				CalibrateDepth(calib_src);
+			}
+		}
+		else if (keyPressed == 'a') {
+			// a => Accept current input
+			contLoop = false;
+		}
+
+		raw.release();
+	}
+
+	// Make sure all windows are closed.
+	cv::destroyAllWindows();
+	disp.release();
+}
+
+
+void KinectInterface::DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found) {
+	// Display all the found geometries over the original image.
+	cv::cvtColor(base, out, cv::COLOR_GRAY2BGR);
+
+	// Colour to draw the boxes in.
+	const cv::Scalar yellow = cv::Scalar(100, 255, 255);
+
+	// Use the min area bounding rectangle to get us a quick approx that we can use. TODO: This is not ideal in the slightest if our bounding contour is off... we should check them!
+	for (std::vector<cv::RotatedRect>::iterator rectit = found.begin(); rectit != found.end(); ++rectit)
+	{
+		cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
+		rectit->points(vertices);
+		for (int i = 0; i < 4; i++) {
+			cv::line(out, vertices[i], vertices[(i + 1) % 4], yellow);
+		}
+	}
+}
+
+
 // TODO: Rename to frame?
 void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRect> &found, const bool debug_window) {
 	// We must be given a greyscale input.
@@ -443,25 +502,10 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRec
 
 	if (debug_window) {
 		std::cout << "Final object count: " << found.size() << std::endl;
-		
-		// Display all the found geometries over the original image.
-		// TODO: This needs to come out. (duplicated from layer process)
+
 		cv::Mat outputdisp;
-		cv::cvtColor(raw, outputdisp, cv::COLOR_GRAY2BGR);
-
-		// Colour to draw the boxes in.
-		const cv::Scalar yellow = cv::Scalar(100, 255, 255);
-
-		// Use the min area bounding rectangle to get us a quick approx that we can use. TODO: This is not ideal in the slightest if our bounding contour is off... we should check them!
-		for (std::vector<cv::RotatedRect>::iterator rectit = found.begin(); rectit != found.end(); ++rectit)
-		{
-			cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
-			rectit->points(vertices);
-			for (int i = 0; i < 4; i++) {
-				cv::line(outputdisp, vertices[i], vertices[(i + 1) % 4], yellow);
-			}
-		}
-
+		// Display all the found geometries over the original image.
+		DrawDetectedGeometry(raw, outputdisp, found);
 		cv::imshow("Combined Layer Output", outputdisp);
 		cv::waitKey();
 		cv::destroyAllWindows();

@@ -7,7 +7,7 @@
 #include "GPKinectAPI/OCVSPacketChallenge.h"
 #include "GPKinectAPI/OCVSPacketScanHeader.h"
 #include "GPKinectAPI/OCVSPacketScanChunk.h"
-#include "GPKinectAPI\OCVSPacketScanReq.h"
+#include "GPKinectAPI/OCVSPacketScanReq.h"
 
 #include "OCVSlaveProtocol.h"
 
@@ -40,16 +40,22 @@ OCVSlaveProtocol::~OCVSlaveProtocol()
 	delete kinect;
 }
 
-bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, bool debug)
+bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, OCVSPacketScanReq::ScanType mode)
 {
 	bool retval = false;
 	found.clear();
 
-	cv::Mat input;
-	retval = kinect->GetWrappedData(input, true, "mixbox.png");
-	//kinect->DebugLoop(); // TODO: Not this
-	kinect->ProcessDepthImage(input, found, debug); // TODO: Not quite this
-	input.release();
+	if (mode == OCVSPacketScanReq::ScanType::SCAN_INTERACTIVE) {
+		// We assume true here, the user can see the input anyway.
+		retval = true;
+		kinect->DebugInteractiveLoop(found); //TODO: Return found
+	}
+	else {
+		cv::Mat input;
+		retval = kinect->GetWrappedData(input, true, "mixbox.png");
+		kinect->ProcessDepthImage(input, found, mode == OCVSPacketScanReq::ScanType::SCAN_DEBUG);
+		input.release();
+	}
 
 	std::cout << "Found" << found.size() << std::endl;
 
@@ -116,7 +122,7 @@ void OCVSlaveProtocol::Connect()
 
 					OCVSPacketScanReq scanReq(buf, 0); // TODO: Check buffer behaviour...
 
-					bool debug = scanReq.DebugRequested();
+					OCVSPacketScanReq::ScanType reqType = scanReq.GetRequestType();
 
 					////////////////////////////////////////
 					// Attempt to get some chunks to send //
@@ -124,7 +130,7 @@ void OCVSlaveProtocol::Connect()
 
 					std::cout << "Request received, ACK'ing and responding." << std::endl;
 
-					CallVision(found, debug);
+					CallVision(found, reqType);
 
 					size_t chunk_count = found.size();
 

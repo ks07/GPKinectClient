@@ -40,7 +40,13 @@ public:
 
 	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
 
-	void DebugLoop();
+	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found);
+
+	// Shows live depth input for calibration of box defs.
+	void DebugCalibrationLoop();
+
+	// Shows live depth input overlayed with detection for live debugging.
+	void DebugInteractiveLoop(std::vector<cv::RotatedRect> &found);
 
 	bool initKinect();
 

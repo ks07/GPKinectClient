@@ -114,7 +114,7 @@ void OCVSlaveProtocol::Connect()
 						throw asio::system_error(asio::error_code());
 					}
 
-					OCVSPacketScanReq scanReq(buf, pktChallenge.GetPackedSize());
+					OCVSPacketScanReq scanReq(buf, 0); // TODO: Check buffer behaviour...
 
 					bool debug = scanReq.DebugRequested();
 

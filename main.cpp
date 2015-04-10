@@ -10,9 +10,9 @@ int main(int argc, char* argv[])
 	}
 
 	OCVSlaveProtocol client(argv[1], argv[2]);
-	//client.Connect();
-	std::vector<cv::RotatedRect> found;
-	client.CallVision(found, true);
+	client.Connect();
+	//std::vector<cv::RotatedRect> found;
+	//client.CallVision(found, true);
 
 	return 0;
 }

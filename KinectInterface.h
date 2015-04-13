@@ -98,7 +98,5 @@ private:
 	void PreprocessDepthFrame(cv::Mat &raw, cv::Mat &out);
 	void LayerPreprocessDepthFrame(cv::Mat &raw, cv::Mat &out, byte low, byte high);
 
-	// TODO: Decide what to do wrt debug viewing of Kinect input
-	bool getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, bool blocking = true, int *rawdest = NULL);
+	bool getKinectData(uint8_t *scaled_dest, bool blocking = true, int *rawdest = NULL);
 };
-

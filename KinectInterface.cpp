@@ -65,11 +65,10 @@ bool KinectInterface::initKinect() {
 }
 
 
-bool KinectInterface::getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, bool blocking, int *rawdest) {
+bool KinectInterface::getKinectData(uint8_t *scaled_dest, bool blocking, int *rawdest) {
 #ifndef DISABLE_KINECT
 	NUI_IMAGE_FRAME imageFrame;
 	NUI_LOCKED_RECT LockedRect;
-	//std::vector<USHORT> validPx;
 
 	if (blocking) {
 		WaitForSingleObject(depthFrameEvent, depthFrameTimeoutMillis);
@@ -78,8 +77,7 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, boo
 	if (sensor == NULL || sensor->NuiImageStreamGetNextFrame(depthStream, 0, &imageFrame) < 0) return false;
 	INuiFrameTexture* texture = imageFrame.pFrameTexture;
 	texture->LockRect(0, &LockedRect, NULL, 0);
-	//int dmax, dmin;
-	//dmax = dmin = 0;
+
 	if (LockedRect.Pitch != 0) {
 		bool first = true;
 		const USHORT* curr = (const USHORT*)LockedRect.pBits;
@@ -88,30 +86,6 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, boo
 		while (curr < dataEnd) {
 			// Get depth in millimeters
 			USHORT depth = NuiDepthPixelToDepth(*curr++);
-			//dmax = max(dmax, depth);
-			//dmin = min(dmin, depth);
-
-			// TODO: Debug visualisation.
-			/*
-			if (depth < 800) {
-				// Show red for out of lower bound pixels.
-				*dest++ = (BYTE)0;
-				*dest++ = (BYTE)0;
-				*dest++ = (BYTE)255;
-			}
-			else if (depth > 4000) {
-				// Show green for out of upper bound pixels.
-				*dest++ = (BYTE)0;
-				*dest++ = (BYTE)255;
-				*dest++ = (BYTE)0;
-			}
-			else {
-				// Greyscale for valid measurements.
-				for (int i = 0; i < 3; ++i)
-					*dest++ = (BYTE)(((float)(depth - 800) / 3200.0) * 256.0); // Scale to 800 - 4000 range (max distance of sensor... appears valid experimentally
-			}
-			*dest++ = 0xff;
-			*/
 
 			if (rawdest != NULL) {
 				*rawdest++ = depth;
@@ -122,18 +96,14 @@ bool KinectInterface::getKinectData(/*GLubyte* dest,*/ uint8_t *scaled_dest, boo
 				first ? *scaled_dest++ = (uint8_t)128 : *scaled_dest++ = *(scaled_dest - 1);
 			}
 			else {
-				//validPx.push_back(depth);
-				*scaled_dest++ = (uint8_t)(((float)(depth - depthMin) / float(depthRange)) * 256.0); // Scale to 800 - 4000 range (max distance of sensor... appears valid experimentally
+				// Scale to predefined range (max is 800 - 4000, we only want a subset due to Kinect positioning)
+				*scaled_dest++ = (uint8_t)(((float)(depth - depthMin) / float(depthRange)) * 256.0);
 			}
 
 			first = false;
 		}
 	}
 
-	//std::sort(validPx.begin(), validPx.end());
-	//std::cout << validPx[0] << validPx[1] << validPx[2] << "..." << validPx[validPx.size() - 3] << validPx[validPx.size() - 2] << validPx[validPx.size() - 1] << std::endl;
-
-	//cout << dmax << ' ' << dmin << std::endl;
 	texture->UnlockRect(0);
 	sensor->NuiImageStreamReleaseFrame(depthStream, &imageFrame);
 	return true;

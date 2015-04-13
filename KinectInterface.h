@@ -10,6 +10,7 @@
 
 #include <vector>
 #include <stdint.h>
+#include <ostream>
 
 class KinectInterface
 {
@@ -22,6 +23,11 @@ class KinectInterface
 		{}
 		uint8_t low;
 		uint8_t high;
+
+		// The operator needs to be overloaded in the std::ostream namespace, thus marked as friend.
+		friend std::ostream& operator<<(std::ostream &os, const BoxLimits &m) {
+			return os << "{ low : " << (int)m.low << " high : " << (int)m.high << " }";
+		}
 	};
 
 public:

@@ -432,6 +432,11 @@ void KinectInterface::DebugCalibrationLoop() {
 			// r => toggle raw input
 			rawDisp = !rawDisp;
 		}
+		else if (keyPressed == 's') {
+			// s => save box def
+			boxes.emplace_back(dbg_lower_thresh, dbg_upper_thresh);
+			std::cout << "Added new box def #" << boxes.size() - 1 << " = " << boxes.back();
+		}
 	}
 
 	// Make sure all windows are closed.

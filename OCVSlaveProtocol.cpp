@@ -11,9 +11,6 @@
 
 #include "OCVSlaveProtocol.h"
 
-// Use image file input in case a Kinect is not connected (for debugging use!)
-#define FIXED_FALLBACK 1
-
 using asio::ip::tcp;
 
 OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
@@ -30,7 +27,6 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	//}
 	cv::Mat calib_src;
 	kinect->GetWrappedData(calib_src, true, "floor.png");
-	std::cout << 'wut\n';
 	kinect->CalibrateDepth(calib_src);
 	calib_src.release();
 }
@@ -52,7 +48,7 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, OCVSPacke
 	}
 	else {
 		cv::Mat input;
-		retval = kinect->GetWrappedData(input, true, "mixbox.png");
+		retval = kinect->GetWrappedData(input, true, "closebox.png");
 		kinect->ProcessDepthImage(input, found, mode == OCVSPacketScanReq::ScanType::SCAN_DEBUG);
 		input.release();
 	}

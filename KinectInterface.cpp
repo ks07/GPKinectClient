@@ -2,6 +2,8 @@
 
 #include "KinectInterface.h"
 
+const char * const KinectInterface::CALIB_WINDOW_TITLE = "Calibration";
+
 KinectInterface::KinectInterface()
 	: calibMask(width * height, CV_16SC1, 0)
 	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
@@ -19,12 +21,12 @@ KinectInterface::KinectInterface(cv::Mat calib_src)
 
 void KinectInterface::DefineBoxes()
 {
-	//boxes.emplace_back(95, 106); // Vans box
-	//boxes.emplace_back(158, 170); // IC book
-	boxes.emplace_back(97, 108); // Vans box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
-	boxes.emplace_back(112, 123); // Large shoe box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
-	boxes.emplace_back(130, 141); // Book stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
-	boxes.emplace_back(36, 47); // Build-a-comp box stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	boxes.emplace_back(95, 106); // Vans box
+	boxes.emplace_back(158, 170); // IC book
+	//boxes.emplace_back(97, 108); // Vans box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	//boxes.emplace_back(112, 123); // Large shoe box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	//boxes.emplace_back(130, 141); // Book stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	//boxes.emplace_back(36, 47); // Build-a-comp box stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
 }
 
 
@@ -316,13 +318,25 @@ void KinectInterface::LayerPreprocessDepthFrame(cv::Mat &src, cv::Mat &out, byte
 	cv::rectangle(out, cv::Rect(out.size().width - 24, out.size().height - 32, 24, 32), 0, CV_FILLED);
 }
 
-void KinectInterface::TrackbarCallback(int value, void *data) {
-	if (data != NULL) {
-		KinectInterface *owner = (KinectInterface *)data;
+void KinectInterface::TrackbarCallback(int value, void *kinectInstance) {
+	if (kinectInstance != NULL) {
+		KinectInterface *owner = (KinectInterface *)kinectInstance;
+
+		// Need to ensure lower <= upper, and that the user's currently selected slider is moved!
+		bool sliding_lower = (value == owner->dbg_lower_thresh);
+
+		if (owner->dbg_lower_thresh > owner->dbg_upper_thresh) {
+			if (sliding_lower) {
+				owner->dbg_upper_thresh = owner->dbg_lower_thresh;
+			}
+			else {
+				owner->dbg_lower_thresh = owner->dbg_upper_thresh;
+			}
+		}
 
 		if (owner->dbg_src_img != NULL && owner->dbg_bw_img != NULL) {
-			RangeThreshold(*owner->dbg_src_img, owner->dbg_lower_thresh, owner->dbg_upper_thresh, *owner->dbg_bw_img);
-			cv::imshow("test", *owner->dbg_bw_img);
+			owner->LayerPreprocessDepthFrame(*owner->dbg_src_img, *owner->dbg_bw_img, owner->dbg_lower_thresh, owner->dbg_upper_thresh);
+			cv::imshow(CALIB_WINDOW_TITLE, *owner->dbg_bw_img);
 		}
 	}
 }
@@ -332,82 +346,83 @@ void KinectInterface::DebugCalibrationLoop() {
 	bool run = true;
 
 	while (run) {
-		bool contLoop = true;
-
 		cv::Mat bw;
+		cv::Mat raw;
+		GetWrappedData(raw, true, "closebox.png");
 
-		while (contLoop) {
-			cv::Mat raw;
-			GetWrappedData(raw, true, "mixbox.png");
+		// Apply some preprocessing steps to the input frame.
+		cv::Mat srcb;
+		PreprocessDepthFrame(raw, srcb);
+		LayerPreprocessDepthFrame(srcb, bw, dbg_lower_thresh, dbg_upper_thresh);
+		
+		cv::imshow(CALIB_WINDOW_TITLE, bw);
 
-			// -----------------------------
-			// RunOpenCV(input, found);
-			// -----------------------------
+		// TODO: We really want to avoid these if possible.
+		dbg_bw_img = &bw;
+		dbg_src_img = &srcb;
 
-			// Apply some preprocessing steps to the input frame.
-			cv::Mat srcb;
-			PreprocessDepthFrame(raw, srcb);
-			LayerPreprocessDepthFrame(srcb, bw, dbg_lower_thresh, dbg_upper_thresh);
+		const int sliderMax = 255;
+		cv::createTrackbar("lowbar", CALIB_WINDOW_TITLE, &dbg_lower_thresh, sliderMax, &KinectInterface::TrackbarCallback, (void *)this);
+		cv::createTrackbar("highbar", CALIB_WINDOW_TITLE, &dbg_upper_thresh, sliderMax, &KinectInterface::TrackbarCallback, (void *)this);
 
-			cv::imshow("test", bw);
+		int keyPressed = cv::waitKey(10);
 
-			// TODO: We really want to avoid these if possible.
-			dbg_bw_img = &bw;
-			dbg_src_img = &srcb;
-
-			cv::createTrackbar("lowbar", "test", &dbg_lower_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
-			cv::createTrackbar("highbar", "test", &dbg_upper_thresh, 255, &KinectInterface::TrackbarCallback, (void *)this);
-
-			int keyPressed = cv::waitKey(10);
-
-			if (keyPressed == 'j') {
-				// j => adjust both scrollbars down/left
+		if (keyPressed == 'j') {
+			// j => adjust both scrollbars down/left
+			if (dbg_lower_thresh == 0) {
+				// If the lower thresh hits 0, wraparound both sliders to the top.
+				int diff = dbg_upper_thresh - dbg_lower_thresh;
+				dbg_upper_thresh = sliderMax;
+				dbg_lower_thresh = sliderMax - diff;
+			}
+			else {
 				dbg_lower_thresh--;
 				dbg_upper_thresh--;
 			}
-			else if (keyPressed == 'k') {
-				// j => adjust both scrollbars down/left
+		}
+		else if (keyPressed == 'k') {
+			// j => adjust both scrollbars down/left
+			if (dbg_upper_thresh == sliderMax) {
+				int diff = dbg_upper_thresh - dbg_lower_thresh;
+				dbg_lower_thresh = 0;
+				dbg_upper_thresh = diff;
+			}
+			else {
 				dbg_lower_thresh++;
 				dbg_upper_thresh++;
 			}
-			else if (keyPressed == 'r') {
-				// r => recalibrate sensor
-				cv::Mat calib_src;
-				if (GetWrappedData(calib_src, true)) {
-					CalibrateDepth(calib_src);
-				}
-				return;
-			}
-			else if (keyPressed == 'n') {
-				// n# => Switch to preset box def.
-				int nKey = cv::waitKey(30 * 1000);
-				if (nKey >= '0' && nKey <= '9') {
-					unsigned int n = nKey - '0';
-					if (n < boxes.size()) {
-						BoxLimits sel = boxes.at(n);
-						dbg_lower_thresh = sel.low;
-						dbg_upper_thresh = sel.high;
-					}
-				}
-				return;
-			}
-			else if (keyPressed == 'q') {
-				// q => Quit
-				run = false;
-			}
-
-			contLoop = (keyPressed == -1 || keyPressed == 'j' || keyPressed == 'k' || keyPressed == 'r' || keyPressed == 'n');
-
-			// END RUNOPENCV
-
-			raw.release();
 		}
-
-		if (!bw.empty()) {
-			// Ensure we don't try passing a failed input for whatever reason
-			std::vector<cv::RotatedRect> found;
-			FindRectanglesInLayer(bw, found, true);
-			std::cout << "Found" << found.size() << std::endl;
+		else if (keyPressed == 'r') {
+			// r => recalibrate sensor
+			cv::Mat calib_src;
+			if (GetWrappedData(calib_src, true)) {
+				CalibrateDepth(calib_src);
+			}
+		}
+		else if (keyPressed == 'n') {
+			// n# => Switch to preset box def.
+			int nKey = cv::waitKey(30 * 1000);
+			if (nKey >= '0' && nKey <= '9') {
+				unsigned int n = nKey - '0';
+				if (n < boxes.size()) {
+					BoxLimits sel = boxes.at(n);
+					dbg_lower_thresh = sel.low;
+					dbg_upper_thresh = sel.high;
+				}
+			}
+		}
+		else if (keyPressed == 't') {
+			// t => Test
+			if (!bw.empty()) {
+				// Ensure we don't try passing a failed input for whatever reason
+				std::vector<cv::RotatedRect> found;
+				FindRectanglesInLayer(bw, found, true);
+				std::cout << "Found" << found.size() << std::endl;
+			}
+		}
+		else if (keyPressed == 'q') {
+			// q => Quit
+			run = false;
 		}
 	}
 
@@ -423,7 +438,7 @@ void KinectInterface::DebugInteractiveLoop(std::vector<cv::RotatedRect> &found) 
 
 	while (contLoop) {
 		cv::Mat raw;
-		GetWrappedData(raw, true, "mixbox.png");
+		GetWrappedData(raw, true, "closebox.png");
 
 		ProcessDepthImage(raw, found, false);
 		DrawDetectedGeometry(raw, disp, found);

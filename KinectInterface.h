@@ -33,14 +33,7 @@ public:
 
 	void CalibrateDepth(cv::Mat &calib_src);
 
-	static void RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst);
-	static void TrackbarCallback(int value, void *data);
-
 	void ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
-
-	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
-
-	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found);
 
 	// Shows live depth input for calibration of box defs.
 	void DebugCalibrationLoop();
@@ -54,8 +47,6 @@ public:
 
 	void filterArray(int *depthArray, int *filteredData);
 
-	void ApplyCalibration(cv::Mat &src, cv::Mat &dest);
-
 	static const int width = 640;
 	static const int height = 480;
 
@@ -63,12 +54,22 @@ public:
 	static const int depthMax = 1307;
 	static const int depthRange = depthMax - depthMin;
 
+	// Public variables for the slider callback in the calibration loop.
+	static void TrackbarCallback(int value, void *kinectInstance);
 	int dbg_lower_thresh = 0;
 	int dbg_upper_thresh = 170;
 	cv::Mat *dbg_bw_img = NULL;
 	cv::Mat *dbg_src_img = NULL;
 
 private:
+	static const char * const CALIB_WINDOW_TITLE;
+
+	static void RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst);
+
+	void ApplyCalibration(cv::Mat &src, cv::Mat &dest);
+
+	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
+	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found);
 	void DefineBoxes();
 	std::vector<BoxLimits> boxes;
 

@@ -14,6 +14,8 @@ public:
 
 	bool CallVision(std::vector<cv::RotatedRect> &found, OCVSPacketScanReq::ScanType mode = OCVSPacketScanReq::ScanType::SCAN);
 
+	void RunCalibration();
+
 private:
 	const char * const host;
 	const char * const port;

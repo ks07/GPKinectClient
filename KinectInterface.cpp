@@ -344,6 +344,7 @@ void KinectInterface::TrackbarCallback(int value, void *kinectInstance) {
 
 void KinectInterface::DebugCalibrationLoop() {
 	bool run = true;
+	bool rawDisp = false;
 
 	while (run) {
 		cv::Mat bw;
@@ -355,7 +356,7 @@ void KinectInterface::DebugCalibrationLoop() {
 		PreprocessDepthFrame(raw, srcb);
 		LayerPreprocessDepthFrame(srcb, bw, dbg_lower_thresh, dbg_upper_thresh);
 		
-		cv::imshow(CALIB_WINDOW_TITLE, bw);
+		cv::imshow(CALIB_WINDOW_TITLE, rawDisp ? srcb : bw);
 
 		// TODO: We really want to avoid these if possible.
 		dbg_bw_img = &bw;
@@ -392,10 +393,13 @@ void KinectInterface::DebugCalibrationLoop() {
 				dbg_upper_thresh++;
 			}
 		}
-		else if (keyPressed == 'r') {
-			// r => recalibrate sensor
+		else if (keyPressed == 'c') {
+			// c => recalibrate sensor
 			cv::Mat calib_src;
 			if (GetWrappedData(calib_src, true)) {
+				cv::imshow("Calibration Image", calib_src);
+				cv::waitKey();
+				cv::destroyWindow("Calibration Image");
 				CalibrateDepth(calib_src);
 			}
 		}
@@ -423,6 +427,10 @@ void KinectInterface::DebugCalibrationLoop() {
 		else if (keyPressed == 'q') {
 			// q => Quit
 			run = false;
+		}
+		else if (keyPressed == 'r') {
+			// r => toggle raw input
+			rawDisp = !rawDisp;
 		}
 	}
 

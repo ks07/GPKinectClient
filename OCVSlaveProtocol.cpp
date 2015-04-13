@@ -58,6 +58,11 @@ bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, OCVSPacke
 	return retval;
 }
 
+void OCVSlaveProtocol::RunCalibration()
+{
+	kinect->DebugCalibrationLoop();
+}
+
 void OCVSlaveProtocol::Connect()
 {
 	while (true)

@@ -50,15 +50,20 @@ bool KinectInterface::initKinect() {
 	if (NuiCreateSensorByIndex(0, &sensor) < 0) return false;
 
 	// Initialize sensor
-	sensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH | NUI_INITIALIZE_FLAG_USES_COLOR);
+	HRESULT res = sensor->NuiInitialize(NUI_INITIALIZE_FLAG_USES_DEPTH | NUI_INITIALIZE_FLAG_USES_COLOR);
+	if (res != S_OK) {
+		sensor->Release();
+		sensor = NULL;
+		return false;
+	}
 	depthFrameEvent = CreateEvent(NULL, true, false, NULL);
-	sensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_DEPTH, // Depth camera or rgb camera?
+	res = sensor->NuiImageStreamOpen(NUI_IMAGE_TYPE_DEPTH, // Depth camera or rgb camera?
 		NUI_IMAGE_RESOLUTION_640x480,                // Image resolution
 		0,         // Image stream flags, e.g. near mode
 		2,        // Number of frames to buffer
 		depthFrameEvent,     // Event handle
 		&depthStream);
-	return true;
+	return (res == S_OK);
 #else
 	return false;
 #endif

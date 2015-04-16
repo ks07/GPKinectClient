@@ -16,14 +16,6 @@ class OpenARScanner
 	const int    CV_AR_MARKER_SIZE    = 160;		// Marker decoding size = 160 * 160 Pixels
 	const double CV_AR_DISP_SCALE_FIT = 0.0;		// Distort (& Fit) the Display Image
 	const double CV_AR_DISP_SCALE_DEF = 0.5;		// Scale the Display Image
-	CvCapture* capture;
-	IplImage*  img;
-	IplImage*  marker_transposed_img;
-	IplImage*  gray;
-	IplImage*  thres;
-	IplImage*  prcs_flg;
-	IplImage*  display_img1;
-	CvMat*     warp_matrix;
 
 	public:
 	OpenARScanner();
@@ -32,8 +24,8 @@ class OpenARScanner
 	ARMarkers scanImage(IplImage* img);
 
 	private:
-	void getHistogram(int* ihist);
-	int OTSU(int ihist[256], float hist_val[256]);
+	void getHistogram(int* ihist, IplImage* gray);
+	int OTSU(int ihist[256], float hist_val[256], IplImage* gray);
 
 	void cv_adjustBox(int x, int y, CvPoint& A, CvPoint& B);
 	bool cv_checkCorner(char* img_data, int img_width, int x, int y);

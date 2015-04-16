@@ -62,6 +62,13 @@ bool OCVSlaveProtocol::CallDepthVision(std::vector<cv::RotatedRect> &found)
 		cv::Mat src = cv::imread("boxbroom_painted_2.png");
 		// Convert to grayscale
 		cv::Mat input;
+
+		if (!src.data)
+		{
+			std::cerr << "ffs" << std::endl;
+			std::cerr << cv::getBuildInformation() << std::endl;
+		}
+
 		cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
 		src.release();
 
@@ -108,20 +115,21 @@ bool OCVSlaveProtocol::CallRGBVision(ARMarkers &found)
     }
     else if (FIXED_FALLBACK)
     {
-        std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
-        cv::Mat src = cv::imread("boxbroom_painted_2.png");
-        // Convert to grayscale
-        cv::Mat input;
-        cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
-        src.release();
+		std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
+        //cv::Mat src = cv::imread("markerphoto.jpg");
+		cv::Mat src = cv::imread("Markers A4 print.jpg");
+		// X and Y are inverted in the game world, so we should tranpose here
+		cv::Mat transposed;
+		cv::transpose(src, transposed);
+		src.release();
 
-        // X and Y are inverted in the game world, so we should tranpose here
-        cv::Mat transposed;
-        cv::transpose(input, transposed);
-        input.release();
+		std::cerr << "Just before scanner bit" << std::endl;
+		found = scanner->scanImage(new IplImage(transposed));
+		std::cerr << "Just after scanner bit" << std::endl;
+		//scanner->scanImage(NULL);
+		scanner->openARLoop();
+		transposed.release();
 
-		scanner->scanImage(new IplImage(transposed));
-        transposed.release();
         return false;
     }
     else
@@ -180,10 +188,17 @@ void OCVSlaveProtocol::Connect()
 				if (pktChallenge.VerifyReceived(buf)) {
 					std::cout << "Good response, connected." << std::endl;
 
-                    //HERE BE MARKERS
-                    while (false /*NOTASKEDFORSCAN*/)
-                    {
-						//scanner->scanImage(kinect->getKinectRGBData());
+
+					//HERE BE MARKERS
+					{
+						std::cout << "Before image scan" << std::endl;
+
+						CallRGBVision(markers);
+						printf("%d markers found", markers.count);
+						/*for (int i = 0; i < markers.count; i++)
+						{
+						printf("Marker num: %d\tPos: (%d, %d)", markers.values[i], markers.centres[i].x, markers.centres[i].y);
+						}*/
 					}
 
 					len = socket.read_some(asio::buffer(buf), error);

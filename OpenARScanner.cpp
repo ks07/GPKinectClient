@@ -2,42 +2,13 @@
 
 OpenARScanner::OpenARScanner()
 {
-	// List of Images to be augmented on the Marker
-	display_img1 = cvLoadImage("image_ar.jpg");
-
-	capture = cvCaptureFromCAM(0);
-	if (!capture) {          	// Check for Camera capture
-		printf("No camera\n");
-	}
-
-	// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
-	marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
-
-	cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
-
-	//	cvNamedWindow("Test",CV_WINDOW_AUTOSIZE);	// Test window to push any visuals during debugging
-
-	img = cvQueryFrame(capture);	// Query for the frame
-
-	// Creation of Intermediate 'Image' Objects required later
-	gray = cvCreateImage(cvGetSize(img), 8, 1);			// To hold Grayscale Image
-	thres = cvCreateImage(cvGetSize(img), 8, 1);		// To hold OTSU thresholded Image
-	prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);		// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
-	warp_matrix = cvCreateMat(3, 3, CV_32FC1);			// Warp matrix to store perspective data
 
 }
 
 
 OpenARScanner::~OpenARScanner()
 {
-	cvDestroyWindow("Camera");			// Release various parameters
-	cvReleaseImage(&img);
-	cvReleaseImage(&gray);
-	cvReleaseImage(&thres);
-	cvReleaseImage(&prcs_flg);
-	cvReleaseImage(&marker_transposed_img);
-	cvReleaseImage(&display_img1);
-	cvReleaseMat(&warp_matrix);
+
 }
 
 
@@ -86,7 +57,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Author  : Bharath Prabhuswamy
 //______________________________________________________________________________________
 
-int OpenARScanner::OTSU(int ihist[256], float hist_val[256])
+int OpenARScanner::OTSU(int ihist[256], float hist_val[256], IplImage* img)
 {
 	//Parameters required to calculate threshold using OTSU Method
 	float prbn = 0.0;                   // First order cumulative
@@ -124,7 +95,7 @@ int OpenARScanner::OTSU(int ihist[256], float hist_val[256])
 	return OPT_THRESH_VAL;
 }
 
-void OpenARScanner::getHistogram(int* ihist)
+void OpenARScanner::getHistogram(int* ihist, IplImage* gray)
 {
 	int pos;								// Position or pixel value of the image
 	memset(ihist, 0, 256);
@@ -140,60 +111,58 @@ void OpenARScanner::getHistogram(int* ihist)
 	}
 }
 
+
+
 // Pass NULL in to grab an image from the webcam
 ARMarkers OpenARScanner::scanImage(IplImage* img)
 {
 	ARMarkers markers = ARMarkers();
 	markers.count = 0;
-	int h, w;								// Variables to store Image Height and Width
 
-	int ihist[256];							// Array to store Histogram values
-	float hist_val[256];					// Array to store Normalised Histogram values
+	IplImage* gray = 0;
+	IplImage* thres = 0;
+	IplImage* prcs_flg = 0;		// Process flag to flag whether the current pixel is already processed as part blob detection
+
+	int h, w;					// Variables to store Image Height and Width
+
+	int ihist[256];				// Array to store Histogram values
+	float hist_val[256];		// Array to store Normalised Histogram values
 
 	int blob_count;
-	int n;									// Number of pixels in a blob
+	int n;						// Number of pixels in a blob
+	int pos;					// Position or pixel value of the image
 
-	int rectw, recth;						// Width and Height of the Bounding Box
-	double aspect_ratio;					// Aspect Ratio of the Bounding Box
+	int rectw, recth;			// Width and Height of the Bounding Box
+	double aspect_ratio;		// Aspect Ratio of the Bounding Box
 
-	int min_blob_sze = 50;         			// Minimum Blob size limit 
-	// int max_blob_sze = 150000;			// Maximum Blob size limit
+	int min_blob_sze = 50;              	// Minimum Blob size limit 
+	// int max_blob_sze = 150000;           	// Maximum Blob size limit
 
-	CvPoint P, Q, R, S;						// Corners of the Marker
+	CvPoint P, Q, R, S;			// Corners of the Marker
+
+	// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
+	IplImage* marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
 
 	CvPoint2D32f srcQuad[4], dstQuad[4];	// Warp matrix Parameters: Source, Destination
 
-	int* clr_flg;							// Array representing elements of entire current row to assign Blob number
-	int* clrprev_flg;						// Array representing elements of entire previous row to assign Blob number
-
-	int marker_id;
-	int marker_num = -1;
-	bool valid_marker_found;
-
-	int OPT_THRESH_VAL;
-	int key = 0;
-
-	bool corner_flag = false;      			// Flag to check whether the current pixel is a Edgel or not
-	CvPoint corners[10000];         		// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
-	CvPoint cornerA, cornerB; 				// Two Corners to represent Bounding Box
-
-	dstQuad[0].x = 0;						// Positions of Marker image (to where it has to be transposed)
-	dstQuad[0].y = 0;
+	dstQuad[0].x = (float)0;			// Positions of Marker image (to where it has to be transposed)
+	dstQuad[0].y = (float)0;
 	dstQuad[1].x = (float)CV_AR_MARKER_SIZE;
-	dstQuad[1].y = 0;
-	dstQuad[2].x = 0;
+	dstQuad[1].y = (float)0;
+	dstQuad[2].x = (float)0;
 	dstQuad[2].y = (float)CV_AR_MARKER_SIZE;
 	dstQuad[3].x = (float)CV_AR_MARKER_SIZE;
 	dstQuad[3].y = (float)CV_AR_MARKER_SIZE;
 
-	clr_flg = (int*)malloc(img->width * sizeof(int));
-	clrprev_flg = (int*)malloc(img->width * sizeof(int));
+	bool init = false;			// Flag to identify initialization of Image objects
+
+	//Step	: Capture a frame from Camera for creating and initializing manipulation variables
+	//Info	: Inbuit functions from OpenCV
+	//Note	: 
 
 	if (img == NULL)
 	{
-		img = cvQueryFrame(capture);		// Query for the frame
-		h = img->height;					// Height and width of the Image
-		w = img->width;
+		return markers;
 	}
 	else
 	{
@@ -201,23 +170,102 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 		w = img->width;
 	}
 
+	// Creation of Intermediate 'Image' Objects required later
+	gray = cvCreateImage(cvGetSize(img), 8, 1);					// To hold Grayscale Image
+	thres = cvCreateImage(cvGetSize(img), 8, 1);				// To hold OTSU thresholded Image
+	prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);				// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
+
+	h = img->height;											// Height and width of the Image
+	w = img->width;
+
+	int* clr_flg = (int*)malloc(img->width * sizeof(int));		// Array representing elements of entire current row to assign Blob number
+	int* clrprev_flg = (int*)malloc(img->width * sizeof(int));	// Array representing elements of entire previous row to assign Blob number
+
+	bool corner_flag = false;      								// Flag to check whether the current pixel is a Edgel or not
+	CvPoint corners[10000];         							// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
+
+	CvMat* warp_matrix = cvCreateMat(3, 3, CV_32FC1);			// Warp matrix to store perspective data
+
+	double t;			// variable to calculate timing
+
+	int marker_id;
+	int marker_num;
+	bool valid_marker_found;
+
+	//For Recording Output
+	//double fps = cvGetCaptureProperty(capture,  CV_CAP_PROP_FPS );
+	//CvVideoWriter *writer = cvCreateVideoWriter( "out.avi",  CV_FOURCC('M', 'J', 'P', 'G'), 24, cvGetSize(img) );
+
+	t = (double)cvGetTickCount();
+
+	//Step	: Convert Image captured from Camera to GrayScale
+	//Info	: Inbuit function from OpenCV
+	//Note	: Image from Camera and Grayscale are held using seperate "IplImage" objects
+
 	cvCvtColor(img, gray, CV_RGB2GRAY);	// Convert RGB image to Gray
 
-	getHistogram(ihist);
-	OPT_THRESH_VAL = OTSU(ihist, hist_val);
+
+	//Step	: Threshold the image using optimum Threshold value obtained from OTSU method
+	//Info	: 
+	//Note	: 
+
+	memset(ihist, 0, 256);
+
+	for (int j = 0; j < gray->height; ++j)	// Use Histogram values from Gray image
+	{
+		uchar* hist = (uchar*)(gray->imageData + j * gray->widthStep);
+		for (int i = 0; i < gray->width; i++)
+		{
+			pos = hist[i];		// Check the pixel value
+			ihist[pos] += 1;	// Use the pixel value as the position/"Weight"
+		}
+	}
+
+	//Parameters required to calculate threshold using OTSU Method
+	float prbn = 0.0;                   // First order cumulative
+	float meanitr = 0.0;                // Second order cumulative
+	float meanglb = 0.0;                // Global mean level
+	int OPT_THRESH_VAL = 0;             // Optimum threshold value
+	float param1, param2;                // Parameters required to work out OTSU threshold algorithm
+	double param3 = 0.0;
+
+	//Normalise histogram values and calculate global mean level
+	for (int i = 0; i < 256; ++i)
+	{
+		hist_val[i] = ihist[i] / (float)(w * h);
+		meanglb += ((float)i * hist_val[i]);
+	}
+
+	// Implementation of OTSU algorithm
+	for (int i = 0; i < 255; i++)
+	{
+		prbn += (float)hist_val[i];
+		meanitr += ((float)i * hist_val[i]);
+
+		param1 = (float)((meanglb * prbn) - meanitr);
+		param2 = (float)(param1 * param1) / (float)(prbn * (1.0f - prbn));
+
+		if (param2 > param3)
+		{
+			param3 = param2;
+			OPT_THRESH_VAL = i; 				// Update the "Weight/Value" as Optimum Threshold value
+		}
+	}
 
 	cvThreshold(gray, thres, OPT_THRESH_VAL, 255, CV_THRESH_BINARY);	//Threshold the Image using the value obtained from OTSU method
+
 
 	//Step	: Identify Blobs in the OTSU Thresholded Image
 	//Info	: Custom Algorithm to Identify blobs
 	//Note	: This is a complicated method. Better refer the presentation, documentation or the Demo
 
-	blob_count = 0;								// Current Blob number used to represent the Blob
+	blob_count = 0;			// Current Blob number used to represent the Blob
+	CvPoint cornerA, cornerB; 	// Two Corners to represent Bounding Box
 
-	memset(clr_flg, 0, w);						// Reset all the array elements ; Flag for tracking progress
+	memset(clr_flg, 0, w);		// Reset all the array elements ; Flag for tracking progress
 	memset(clrprev_flg, 0, w);
-	cvZero(prcs_flg);							// Reset all Process flags
 
+	cvZero(prcs_flg);		// Reset all Process flags
 	for (int y = 0; y < thres->height; ++y)		//Start full scan of the image by incrementing y
 	{
 		uchar* prsnt = (uchar*)(thres->imageData + y * thres->widthStep);
@@ -515,7 +563,6 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 						{
 							valid_marker_found = true;
 						}
-
 						//HERE BE ALL THE INTERESTING BITS
 						if (valid_marker_found == true)			// Add marker to markers
 						{
@@ -554,65 +601,119 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 	//cvReleaseVideoWriter( &writer );
 	free(clr_flg);
 	free(clrprev_flg);
+
+	printf("Markers: %d\n", markers.count);
+
 	return markers;
 }
 
+
+
+
+
+//99% unchanged
 int OpenARScanner::openARLoop()
 {
-	int h, w;								// Variables to store Image Height and Width
+	CvCapture* capture = 0;
+	IplImage* img = 0;
 
-	int ihist[256];							// Array to store Histogram values
-	float hist_val[256];					// Array to store Normalised Histogram values
+	// List of Images to be augmented on the Marker
+
+	IplImage* display_img1 = cvLoadImage("image_ar.jpg");
+	if (!display_img1)
+		return -1;
+
+	capture = cvCaptureFromCAM(0);
+	if (!capture)           	// Check for Camera capture
+		return -1;
+
+	cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
+
+	//	cvNamedWindow("Test",CV_WINDOW_AUTOSIZE);	// Test window to push any visuals during debugging
+
+	IplImage* gray = 0;
+	IplImage* thres = 0;
+	IplImage* prcs_flg = 0;		// Process flag to flag whether the current pixel is already processed as part blob detection
+
+
+	int h, w;					// Variables to store Image Height and Width
+
+	int ihist[256];				// Array to store Histogram values
+	float hist_val[256];		// Array to store Normalised Histogram values
 
 	int blob_count;
-	int n;									// Number of pixels in a blob
+	int n;						// Number of pixels in a blob
+	int pos;					// Position or pixel value of the image
 
-	int rectw, recth;						// Width and Height of the Bounding Box
-	double aspect_ratio;					// Aspect Ratio of the Bounding Box
+	int rectw, recth;			// Width and Height of the Bounding Box
+	double aspect_ratio;		// Aspect Ratio of the Bounding Box
 
-	int min_blob_sze = 50;         			// Minimum Blob size limit 
-	// int max_blob_sze = 150000;			// Maximum Blob size limit
+	int min_blob_sze = 50;              	// Minimum Blob size limit 
+	// int max_blob_sze = 150000;           	// Maximum Blob size limit
 
-	CvPoint P, Q, R, S;						// Corners of the Marker
+	CvPoint P, Q, R, S;			// Corners of the Marker
+
+	// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
+	IplImage* marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
 
 	CvPoint2D32f srcQuad[4], dstQuad[4];	// Warp matrix Parameters: Source, Destination
 
-	int* clr_flg;							// Array representing elements of entire current row to assign Blob number
-	int* clrprev_flg;						// Array representing elements of entire previous row to assign Blob number
-
-	double t;								// Variable to calculate timing
-
-	int marker_id;
-	int marker_num = -1;
-	bool valid_marker_found;
-
-	int OPT_THRESH_VAL;
-	int key = 0;
-
-	bool corner_flag = false;      			// Flag to check whether the current pixel is a Edgel or not
-	CvPoint corners[10000];         		// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
-	CvPoint cornerA, cornerB; 				// Two Corners to represent Bounding Box
-
-	dstQuad[0].x = 0;						// Positions of Marker image (to where it has to be transposed)
-	dstQuad[0].y = 0;
+	dstQuad[0].x = (float)0;			// Positions of Marker image (to where it has to be transposed)
+	dstQuad[0].y = (float)0;
 	dstQuad[1].x = (float)CV_AR_MARKER_SIZE;
-	dstQuad[1].y = 0;
-	dstQuad[2].x = 0;
+	dstQuad[1].y = (float)0;
+	dstQuad[2].x = (float)0;
 	dstQuad[2].y = (float)CV_AR_MARKER_SIZE;
 	dstQuad[3].x = (float)CV_AR_MARKER_SIZE;
 	dstQuad[3].y = (float)CV_AR_MARKER_SIZE;
 
-	clr_flg = (int*)malloc(img->width * sizeof(int));
-	clrprev_flg = (int*)malloc(img->width * sizeof(int));
+	bool init = false;			// Flag to identify initialization of Image objects
 
-	h = img->height;						// Height and width of the Image
+
+
+	//Step	: Capture a frame from Camera for creating and initializing manipulation variables
+	//Info	: Inbuit functions from OpenCV
+	//Note	: 
+
+	if (init == false)
+	{
+		img = cvQueryFrame(capture);	// Query for the frame
+		if (!img)		// Exit if camera frame is not obtained
+			return -1;
+
+		// Creation of Intermediate 'Image' Objects required later
+		gray = cvCreateImage(cvGetSize(img), 8, 1);		// To hold Grayscale Image
+		thres = cvCreateImage(cvGetSize(img), 8, 1);		// To hold OTSU thresholded Image
+		prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);	// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
+
+
+		init = true;
+	}
+
+	int* clr_flg = (int*)malloc(img->width * sizeof(int));		// Array representing elements of entire current row to assign Blob number
+	int* clrprev_flg = (int*)malloc(img->width * sizeof(int));	// Array representing elements of entire previous row to assign Blob numbe
+
+	h = img->height;		// Height and width of the Image
 	w = img->width;
+
+	bool corner_flag = false;      				// Flag to check whether the current pixel is a Edgel or not
+	CvPoint corners[10000];         			// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
+
+	CvMat* warp_matrix = cvCreateMat(3, 3, CV_32FC1);         // Warp matrix to store perspective data
+
+
+	double t;			// variable to calculate timing
+
+	int marker_id;
+	int marker_num;
+	bool valid_marker_found;
 
 	//For Recording Output
 	//double fps = cvGetCaptureProperty(capture,  CV_CAP_PROP_FPS );
 	//CvVideoWriter *writer = cvCreateVideoWriter( "out.avi",  CV_FOURCC('M', 'J', 'P', 'G'), 24, cvGetSize(img) );
 
-	while (key != 'q')						// While loop to query for Camera frame
+	int key = 0;
+	while (key != 'q')		// While loop to query for Camera frame
 	{
 		t = (double)cvGetTickCount();
 
@@ -628,45 +729,90 @@ int OpenARScanner::openARLoop()
 
 		cvCvtColor(img, gray, CV_RGB2GRAY);	// Convert RGB image to Gray
 
+
 		//Step	: Threshold the image using optimum Threshold value obtained from OTSU method
 		//Info	: 
 		//Note	: 
 
-		getHistogram(ihist);
-		OPT_THRESH_VAL = OTSU(ihist, hist_val);
+		memset(ihist, 0, 256);
+
+		for (int j = 0; j < gray->height; ++j)	// Use Histogram values from Gray image
+		{
+			uchar* hist = (uchar*)(gray->imageData + j * gray->widthStep);
+			for (int i = 0; i < gray->width; i++)
+			{
+				pos = hist[i];		// Check the pixel value
+				ihist[pos] += 1;	// Use the pixel value as the position/"Weight"
+			}
+		}
+
+		//Parameters required to calculate threshold using OTSU Method
+		float prbn = 0.0;                   // First order cumulative
+		float meanitr = 0.0;                // Second order cumulative
+		float meanglb = 0.0;                // Global mean level
+		int OPT_THRESH_VAL = 0;             // Optimum threshold value
+		float param1, param2;                // Parameters required to work out OTSU threshold algorithm
+		double param3 = 0.0;
+
+		//Normalise histogram values and calculate global mean level
+		for (int i = 0; i < 256; ++i)
+		{
+			hist_val[i] = ihist[i] / (float)(w * h);
+			meanglb += ((float)i * hist_val[i]);
+		}
+
+		// Implementation of OTSU algorithm
+		for (int i = 0; i < 255; i++)
+		{
+			prbn += (float)hist_val[i];
+			meanitr += ((float)i * hist_val[i]);
+
+			param1 = (float)((meanglb * prbn) - meanitr);
+			param2 = (float)(param1 * param1) / (float)(prbn * (1.0f - prbn));
+
+			if (param2 > param3)
+			{
+				param3 = param2;
+				OPT_THRESH_VAL = i; 				// Update the "Weight/Value" as Optimum Threshold value
+			}
+		}
 
 		cvThreshold(gray, thres, OPT_THRESH_VAL, 255, CV_THRESH_BINARY);	//Threshold the Image using the value obtained from OTSU method
+
 
 		//Step	: Identify Blobs in the OTSU Thresholded Image
 		//Info	: Custom Algorithm to Identify blobs
 		//Note	: This is a complicated method. Better refer the presentation, documentation or the Demo
 
-		blob_count = 0;								// Current Blob number used to represent the Blob
+		blob_count = 0;			// Current Blob number used to represent the Blob
+		CvPoint cornerA, cornerB; 	// Two Corners to represent Bounding Box
 
-		memset(clr_flg, 0, w);						// Reset all the array elements ; Flag for tracking progress
+		memset(clr_flg, 0, w);		// Reset all the array elements ; Flag for tracking progress
 		memset(clrprev_flg, 0, w);
-		cvZero(prcs_flg);							// Reset all Process flags
 
-		for (int y = 0; y < thres->height; ++y)		//Start full scan of the image by incrementing y
+		cvZero(prcs_flg);		// Reset all Process flags
+
+
+		for (int y = 0; y < thres->height; ++y)	//Start full scan of the image by incrementing y
 		{
 			uchar* prsnt = (uchar*)(thres->imageData + y * thres->widthStep);
 			uchar* pntr_flg = (uchar*)(prcs_flg->imageData + y * prcs_flg->widthStep);  // pointer to access the present value of pixel in Process flag
-			uchar* scn_prsnt;															// pointer to access the present value of pixel related to a particular blob
-			uchar* scn_next;															// pointer to access the next value of pixel related to a particular blob
+			uchar* scn_prsnt;      // pointer to access the present value of pixel related to a particular blob
+			uchar* scn_next;       // pointer to access the next value of pixel related to a particular blob
 
-			for (int x = 0; x < thres->width; ++x)										//Start full scan of the image by incrementing x
+			for (int x = 0; x < thres->width; ++x)	//Start full scan of the image by incrementing x
 			{
-				int c = 0;																// Number of edgels in a particular blob
-				marker_id = 0;															// Identification number of the particular pattern
-				if ((prsnt[x] == 0) && (pntr_flg[x] == 0))								// If current pixel is black and has not been scanned before - continue
+				int c = 0;					// Number of edgels in a particular blob
+				marker_id = 0;					// Identification number of the particular pattern
+				if ((prsnt[x] == 0) && (pntr_flg[x] == 0))	// If current pixel is black and has not been scanned before - continue
 				{
-					blob_count += 1;												    // Increment at the start of processing new blob
-					clr_flg[x] = blob_count;										    // Update blob number
-					pntr_flg[x] = 255;													// Mark the process flag
-					
-					n = 1;																// Update pixel count of this particular blob / this iteration
+					blob_count += 1;                          // Increment at the start of processing new blob
+					clr_flg[x] = blob_count;                // Update blob number
+					pntr_flg[x] = 255;                      // Mark the process flag
 
-					cornerA.x = x;														// Update Bounding Box Location for this particular blob / this iteration
+					n = 1;                                   // Update pixel count of this particular blob / this iteration
+
+					cornerA.x = x;                           // Update Bounding Box Location for this particular blob / this iteration
 					cornerA.y = y;
 					cornerB.x = x;
 					cornerB.y = y;
@@ -722,7 +868,6 @@ int OpenARScanner::openARLoop()
 								n = n + 1;
 								belowx--;
 							}
-
 							//Scanning of a particular row of the blob
 							for (lx = belowx; lx < thres->width; ++lx)
 							{
@@ -910,11 +1055,12 @@ int OpenARScanner::openARLoop()
 							// Step	: Decode 16bit Marker to Identify marker uniquely and Get associated Marker Number
 							// Info	: 
 							// Note	: The Marker ID is valid in any 4 Direction of looking
-							
-							cv_ARgetMarkerID_16b(marker_transposed_img, marker_id);	// Get Marker ID
-							cv_ARgetMarkerNum(marker_id, marker_num);				// Get Marker Number Corrosponding to ID
 
-							if (marker_num >= 0 && marker_num <= 3)
+							cv_ARgetMarkerID_16b(marker_transposed_img, marker_id);	// Get Marker ID
+							cv_ARgetMarkerNum(marker_id, marker_num);		// Get Marker Number Corrosponding to ID
+
+
+							if (marker_num == 1)
 							{
 								valid_marker_found = true;
 							}
@@ -940,24 +1086,27 @@ int OpenARScanner::openARLoop()
 
 							}
 
-							if (marker_num >= 0 && marker_num <= 3)				// Now check if still marker is valid
+							if (marker_num == 1)				// Now check if still marker is valid
 							{
 								valid_marker_found = true;
 							}
 
-							//HERE BE ALL THE INTERESTING BITS
 							if (valid_marker_found == true)			// Show Display image corrosponding to the Marker Number
 							{
+
+
 								// Step	: Augment the "Display object" in position of the marker over Camera Image using the Warp Matrix
 								// Info	: 
 								// Note	: Marker number used to make it easlier to change 'Display' image accordingly, 
 								// Also Note the jugglery to augment due to OpenCV's limiation passing two images of DIFFERENT sizes  
 								// while using "cvWarpPerspective".  
-								printf("Marker: %d,\t", marker_num);
-								printf("Pos: (%d, %d)\n", (cornerA.x + cornerB.x) / 2, (cornerA.y + cornerB.y) / 2);
-								cv_ARaugmentImage(display_img1, img, srcQuad, CV_AR_DISP_SCALE_FIT); // Send the Image to display, Camera Image and Position of the Marker
-								cv_ARoutlineMarker(cornerA, cornerB, P, Q, R, S, img);
-								cvShowImage("Test", marker_transposed_img);
+
+								if (marker_num == 1)
+								{
+									cv_ARaugmentImage(display_img1, img, srcQuad, CV_AR_DISP_SCALE_FIT); // Send the Image to display, Camera Image and Position of the Marker		
+									cv_ARoutlineMarker(cornerA, cornerB, P, Q, R, S, img);
+									cvShowImage( "Test", marker_transposed_img);
+								}
 							}
 							valid_marker_found = false;
 
@@ -988,12 +1137,25 @@ int OpenARScanner::openARLoop()
 		cvShowImage("Camera", img);
 
 		//cvWriteFrame( writer, img );		// Save frame to output
-		key = cvWaitKey(1);					// OPENCV: wait for 1ms before accessing next frame
-	}										// End of 'while' loop
+
+		key = cvWaitKey(1);			// OPENCV: wait for 1ms before accessing next frame
+
+	}						// End of 'while' loop
+
+	cvDestroyWindow("Camera");			// Release various parameters
+
+	cvReleaseImage(&img);
+	cvReleaseImage(&gray);
+	cvReleaseImage(&thres);
+	cvReleaseImage(&prcs_flg);
+	cvReleaseImage(&marker_transposed_img);
+
+	cvReleaseImage(&display_img1);
+
+	cvReleaseMat(&warp_matrix);
 
 	//cvReleaseVideoWriter( &writer );
-	free(clr_flg);
-	free(clrprev_flg);
+
 	return 0;
 }
 // End of Main Loop
@@ -1252,6 +1414,18 @@ void OpenARScanner::cv_ARgetMarkerNum(int marker_id, int& marker_num)
 		case 0X4CC8:
 			marker_num = 3;
 			break;
+		case 0x9E1F:
+		case 0xBAAD:
+		case 0xF879:
+		case 0xB55D:
+			marker_num = 4;
+			break;
+		case 0xF559:
+		case 0xF8E9:
+		case 0x9AAF:
+		case 0x971F:
+			marker_num = 5;
+			break;
 		case 0xC800:		//So it turns out it *REALLY* likes this particular one
 		case 0x3100:		//To the point where it will recognise it from an almost blank wall
 		case 0x0013:		//Keeping this here to ensure we don't use the same marker in the future.
@@ -1262,6 +1436,9 @@ void OpenARScanner::cv_ARgetMarkerNum(int marker_id, int& marker_num)
 			marker_num = -1;
 			break;
 	}
+
+	printf("Marker numero %d\n", marker_num);
+
 }
 
 void OpenARScanner::cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4], double scale)

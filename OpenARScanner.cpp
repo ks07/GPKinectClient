@@ -1436,9 +1436,6 @@ void OpenARScanner::cv_ARgetMarkerNum(int marker_id, int& marker_num)
 			marker_num = -1;
 			break;
 	}
-
-	printf("Marker numero %d\n", marker_num);
-
 }
 
 void OpenARScanner::cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4], double scale)

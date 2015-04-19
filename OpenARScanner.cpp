@@ -290,9 +290,9 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 									pntr_flg[lx] = 255;
 
 									clr_flg[lx] = blob_count;
-									//printf("Before cv_checkcorner\n");
+									printf("Before cv_checkcorner\n");
 									corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
-									//printf("After cv_checkcorner\n");
+									printf("After cv_checkcorner\n");
 									if (corner_flag == true)
 									{
 										//printf("Corner flag true\n");
@@ -636,6 +636,11 @@ bool OpenARScanner::cv_checkCorner(char* img_data, int img_width, int x, int y)
 		{
 			for (int j = (0 - wind_bnd); j <= wind_bnd; ++j)
 			{
+				printf("Before the suspected bit.\n");
+				printf("Accessing ptr[%d][%d].\n", i, x + j);
+				printf("x = %d, j = %d.\n", x, j);
+				printf("wind_bnd = %d, wind_sz = %d\n", wind_bnd, wind_sz);
+				getchar();
 				if (ptr[i][x + j] == 0)
 					sum += 1;
 				else

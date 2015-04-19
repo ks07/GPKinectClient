@@ -10,9 +10,11 @@ int main(int argc, char* argv[])
 	OCVSlaveProtocol client(argv[1], argv[2]);
 	
 	client.Connect();*/
+	
+	OpenARScanner scanner;
+	ARMarkers markers = scanner.scanImage(NULL);
 
-	ARMarkers markers = scanImage(NULL);
-
+	printf("%d markers found\n", markers.count);
 	for (int i = 0; i < markers.count; i++)
 	{
 		printf("%d found\n", markers.values[i]);

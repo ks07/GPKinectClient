@@ -18,7 +18,7 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
-	, scanner(new OpenARScanner())
+	//, scanner(new OpenARScanner())
 	, dimgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	initSuccess = kinect->initKinect();
@@ -115,20 +115,14 @@ bool OCVSlaveProtocol::CallRGBVision(ARMarkers &found)
     }
     else if (FIXED_FALLBACK)
     {
-		std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
-        //cv::Mat src = cv::imread("markerphoto.jpg");
-		cv::Mat src = cv::imread("Markers A4 print.jpg");
-		// X and Y are inverted in the game world, so we should tranpose here
-		cv::Mat transposed;
-		cv::transpose(src, transposed);
-		src.release();
-
 		std::cerr << "Just before scanner bit" << std::endl;
-		found = scanner->scanImage(new IplImage(transposed));
+		found = scanner->scanImage(NULL);
+		printf("Here\n");
+		for (int i = 0; i < found.count; i++)
+		{
+			printf("%d: (%d, %d)\n", found.values[i], found.centres[i].x, found.centres[i].y);
+		}
 		std::cerr << "Just after scanner bit" << std::endl;
-		//scanner->scanImage(NULL);
-		scanner->openARLoop();
-		transposed.release();
 
         return false;
     }
@@ -191,7 +185,7 @@ void OCVSlaveProtocol::Connect()
 
 					//HERE BE MARKERS
 					{
-						std::cout << "Before image scan" << std::endl;
+						std::cout << "Before callrgbvision" << std::endl;
 
 						CallRGBVision(markers);
 						printf("%d markers found", markers.count);

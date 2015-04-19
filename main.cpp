@@ -1,5 +1,4 @@
 #include "main.h"
-#include "KinectInterface.h"
 
 int main(int argc, char* argv[])
 {
@@ -12,31 +11,22 @@ int main(int argc, char* argv[])
 	
 	client.Connect();*/
 
-	ARMarkers markers = openARLoop(argc, argv);
+	ARMarkers markers = scanImage(NULL);
 
 	for (int i = 0; i < markers.count; i++)
 	{
-		printf("%d: (%d, %d)\n", markers.values[i], markers.centres[i].x, markers.centres[i].y);
+		printf("%d found\n", markers.values[i]);
 	}
 
 	return 0;
 }
 
-ARMarkers openARLoop(int argc, char **argv)
+ARMarkers scanImage(IplImage* img)
 {
 	ARMarkers markers;
 	markers.count = 0;
 
-	CvCapture* capture = 0;
-	IplImage* img = 0;
-
 	// List of Images to be augmented on the Marker
-
-	IplImage* display_img1 = cvLoadImage("image_ar.jpg");
-	if (!display_img1)
-		return markers;
-
-	//cvNamedWindow("Camera", CV_WINDOW_AUTOSIZE);
 
 	IplImage* gray = 0;
 	IplImage* thres = 0;
@@ -58,12 +48,12 @@ ARMarkers openARLoop(int argc, char **argv)
 	// int max_blob_sze = 150000;			// Maximum Blob size limit
 
 	CvPoint P, Q, R, S;						// Corners of the Marker
-
+	printf("Here 0\n");
 	// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
 	IplImage* marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
-
+	printf("Here 0.1\n");
 	CvPoint2D32f srcQuad[4], dstQuad[4];	// Warp matrix Parameters: Source, Destination
-
+	printf("Here 0.2\n");
 	dstQuad[0].x = 0;						// Positions of Marker image (to where it has to be transposed)
 	dstQuad[0].y = 0;
 	dstQuad[1].x = CV_AR_MARKER_SIZE;
@@ -73,29 +63,30 @@ ARMarkers openARLoop(int argc, char **argv)
 	dstQuad[3].x = CV_AR_MARKER_SIZE;
 	dstQuad[3].y = CV_AR_MARKER_SIZE;
 
-	bool init = false;						// Flag to identify initialization of Image objects
-
-
 
 	//Step	: Capture a frame from Camera for creating and initializing manipulation variables
 	//Info	: Inbuit functions from OpenCV
 	//Note	: 
 
-	if (init == false)
+	printf("Here 0.5\n");
+
+	if (img == NULL)
 	{
-		//img = cvQueryFrame(capture);		// Query for the frame
+		printf("Loading image\n");
 		img = cvLoadImage("markerphoto.jpg");
-		if (!img)							// Exit if camera frame is not obtained
+		if (!img)
+		{
+			printf("Load failed\n");
 			return markers;
-
-		// Creation of Intermediate 'Image' Objects required later
-		gray = cvCreateImage(cvGetSize(img), 8, 1);				// To hold Grayscale Image
-		thres = cvCreateImage(cvGetSize(img), 8, 1);			// To hold OTSU thresholded Image
-		prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);			// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
-
-
-		init = true;
+		}
 	}
+
+	printf("Here 1\n");
+
+	// Creation of Intermediate 'Image' Objects required later
+	gray = cvCreateImage(cvGetSize(img), 8, 1);				// To hold Grayscale Image
+	thres = cvCreateImage(cvGetSize(img), 8, 1);			// To hold OTSU thresholded Image
+	prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);			// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
 
 	int* clr_flg = (int*)malloc(sizeof(int) * img->width);		// Array representing elements of entire current row to assign Blob number
 	int* clrprev_flg = (int*)malloc(sizeof(int) *img->width);	// Array representing elements of entire previous row to assign Blob number
@@ -115,9 +106,10 @@ ARMarkers openARLoop(int argc, char **argv)
 	int marker_num;
 	bool valid_marker_found;
 
-	int markerCount = -1;
-	while (markerCount != markers.count)		// While loop to query for Camera frame
+	bool newMarkerFound = true;
+	while (newMarkerFound)		// While loop to query for Camera frame
 	{
+		newMarkerFound = false;
 
 		cvCvtColor(img, gray, CV_RGB2GRAY);	// Convert RGB image to Gray
 
@@ -487,12 +479,19 @@ ARMarkers openARLoop(int argc, char **argv)
 								// Note	: Marker number used to make it easlier to change 'Display' image accordingly, 
 								// Also Note the jugglery to augment due to OpenCV's limiation passing two images of DIFFERENT sizes  
 								// while using "cvWarpPerspective".  
+								//printf("Marker: %d,\n", marker_num);
 
-								if (marker_num > 0)
+								for (int i = 0; i < markers.values.size(); i++)
 								{
-									printf("Marker: %d,\t", marker_num);
-									printf("Pos: (%d, %d)\n", (cornerA.x + cornerB.x) / 2, (cornerA.y + cornerB.y) / 2);
+									if (markers.values[i] == marker_num)
+									{
+										marker_num = -1;
+									}
+								}
 
+								if (/*std::find(markers.values.begin(), markers.values.end(), marker_num) != markers.values.end() && markers.values.size() > 0*/
+									marker_num > 0)
+								{
 									CvPoint centre;
 									centre.x = (cornerA.x + cornerB.x) / 2;
 									centre.y = (cornerA.y + cornerB.y) / 2;
@@ -500,12 +499,9 @@ ARMarkers openARLoop(int argc, char **argv)
 									markers.values.push_back(marker_num);
 									markers.count++;
 
-									cv_ARaugmentImage(display_img1, img, srcQuad, CV_AR_DISP_SCALE_FIT); // Send the Image to display, Camera Image and Position of the Marker		
-									cv_ARoutlineMarker(cornerA, cornerB, P, Q, R, S, img);
-									// cvShowImage( "Test", marker_transposed_img);
+									newMarkerFound = true;
 								}
 							}
-							valid_marker_found = false;
 
 							// If a valid marker was detected, then a Image will be augmented on that blob and process will continue to analysis of next blob
 
@@ -547,16 +543,12 @@ ARMarkers openARLoop(int argc, char **argv)
 	cvReleaseImage(&prcs_flg);
 	cvReleaseImage(&marker_transposed_img);
 
-	cvReleaseImage(&display_img1);
-
 	cvReleaseMat(&warp_matrix);
-
-	printf("Here at the end\n");
-	markerCount++;
 
 	return markers;
 }
 
+// Routine to update Bounding Box corners with farthest corners in that Box
 void cv_adjustBox(int x, int y, CvPoint& A, CvPoint& B)
 {
 	if (x < A.x)
@@ -836,7 +828,6 @@ void cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4]
 	IplImage* cpy_img = cvCreateImage(cvGetSize(img), 8, 3);	// To hold Camera Image Mask 
 	IplImage* neg_img = cvCreateImage(cvGetSize(img), 8, 3);	// To hold Marker Image Mask
 	IplImage* blank;						// To assist Marker Pass
-	IplImage temp;
 
 	blank = cvCreateImage(cvGetSize(display), 8, 3);
 	cvZero(blank);
@@ -850,28 +841,28 @@ void cv_ARaugmentImage(IplImage* display, IplImage* img, CvPoint2D32f srcQuad[4]
 		dispQuad[0].x = 0;				// Positions of Display image (not yet transposed)
 		dispQuad[0].y = 0;
 
-		dispQuad[1].x = display->width;
+		dispQuad[1].x = (float)display->width;
 		dispQuad[1].y = 0;
 
 		dispQuad[2].x = 0;
-		dispQuad[2].y = display->height;
+		dispQuad[2].y = (float)display->height;
 
-		dispQuad[3].x = display->width;
-		dispQuad[3].y = display->height;
+		dispQuad[3].x = (float)display->width;
+		dispQuad[3].y = (float)display->height;
 	}
 	else
 	{
-		dispQuad[0].x = (display->width / 2) - (CV_AR_MARKER_SIZE / scale);			// Positions of Display image (not yet transposed)
-		dispQuad[0].y = (display->height / 2) - (CV_AR_MARKER_SIZE / scale);
+		dispQuad[0].x = (float)((display->width / 2) - (CV_AR_MARKER_SIZE / scale));			// Positions of Display image (not yet transposed)
+		dispQuad[0].y = (float)((display->height / 2) - (CV_AR_MARKER_SIZE / scale));
 
-		dispQuad[1].x = (display->width / 2) + (CV_AR_MARKER_SIZE / scale);
-		dispQuad[1].y = (display->height / 2) - (CV_AR_MARKER_SIZE / scale);
+		dispQuad[1].x = (float)((display->width / 2) + (CV_AR_MARKER_SIZE / scale));
+		dispQuad[1].y = (float)((display->height / 2) - (CV_AR_MARKER_SIZE / scale));
 
-		dispQuad[2].x = (display->width / 2) - (CV_AR_MARKER_SIZE / scale);
-		dispQuad[2].y = (display->height / 2) + (CV_AR_MARKER_SIZE / scale);
+		dispQuad[2].x = (float)((display->width / 2) - (CV_AR_MARKER_SIZE / scale));
+		dispQuad[2].y = (float)((display->height / 2) + (CV_AR_MARKER_SIZE / scale));
 
-		dispQuad[3].x = (display->width / 2) + (CV_AR_MARKER_SIZE / scale);
-		dispQuad[3].y = (display->height / 2) + (CV_AR_MARKER_SIZE / scale);
+		dispQuad[3].x = (float)((display->width / 2) + (CV_AR_MARKER_SIZE / scale));
+		dispQuad[3].y = (float)((display->height / 2) + (CV_AR_MARKER_SIZE / scale));
 	}
 
 	cvGetPerspectiveTransform(dispQuad, srcQuad, disp_warp_matrix);	// Caclculate the Warp Matrix to which Display Image has to be transformed

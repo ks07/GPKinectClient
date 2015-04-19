@@ -20,7 +20,6 @@ class OpenARScanner
 	public:
 	OpenARScanner();
 	~OpenARScanner();
-	int openARLoop();
 	ARMarkers scanImage(IplImage* img);
 
 	private:

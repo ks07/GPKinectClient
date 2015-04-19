@@ -235,7 +235,7 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 					bool below_init = 1;					// Flags to facilitate the scanning of the entire blob once
 					bool start = 1;
 
-					printf("Blob scan time\n");
+					//printf("Blob scan time\n");
 					while (ly < h)							// Start the scanning of the blob
 					{
 						if (checkbelow == true)				// If there is continuity of the blob in the next row & checkbelow is set; continue to scan next row

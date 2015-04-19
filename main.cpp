@@ -11,8 +11,7 @@ int main(int argc, char* argv[])
 	
 	client.Connect();*/
 	
-	OpenARScanner scanner;
-	ARMarkers markers = scanner.scanImage(NULL);
+	ARMarkers markers = OpenARScanner::scanImage(NULL);
 
 	printf("%d markers found\n", markers.count);
 	for (int i = 0; i < markers.count; i++)

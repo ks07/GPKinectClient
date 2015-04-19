@@ -1,18 +1,9 @@
 #include "OpenARScanner.h"
 
-OpenARScanner::OpenARScanner()
-{
-
-}
-
-
-OpenARScanner::~OpenARScanner()
-{
-
-}
-
-
-
+// Funny c++ rules, plus MS isn't up to date with c++11
+int    OpenARScanner::CV_AR_MARKER_SIZE = 160;			// Marker decoding size = 160 * 160 Pixels
+double OpenARScanner::CV_AR_DISP_SCALE_FIT = 0.0;		// Distort (& Fit) the Display Image
+double OpenARScanner::CV_AR_DISP_SCALE_DEF = 0.5;		// Scale the Display Image
 
 /*
 -----------------------------------------------------------------------------------------------------------

@@ -18,7 +18,6 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
-	//, scanner(new OpenARScanner())
 	, dimgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	initSuccess = kinect->initKinect();
@@ -116,7 +115,7 @@ bool OCVSlaveProtocol::CallRGBVision(ARMarkers &found)
     else if (FIXED_FALLBACK)
     {
 		std::cerr << "Just before scanner bit" << std::endl;
-		found = scanner->scanImage(NULL);
+		found = OpenARScanner::scanImage(NULL);
 		printf("Here\n");
 		for (int i = 0; i < found.count; i++)
 		{

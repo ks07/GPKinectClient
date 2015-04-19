@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
 	
 	client.Connect();*/
 	
-	ARMarkers markers = OpenARScanner::scanImage(NULL);
+	ARMarkers markers = /*OpenARScanner::*/scanImage(NULL);
 
 	printf("%d markers found\n", markers.count);
 	for (int i = 0; i < markers.count; i++)
@@ -24,432 +24,411 @@ int main(int argc, char* argv[])
 
 ARMarkers scanImage(IplImage* img)
 {
-	ARMarkers markers;
-	markers.count = 0;
+		ARMarkers markers;
+		markers.count = 0;
 
-	// List of Images to be augmented on the Marker
+		// List of Images to be augmented on the Marker
 
-	IplImage* gray = 0;
-	IplImage* thres = 0;
-	IplImage* prcs_flg = 0;					// Process flag to flag whether the current pixel is already processed as part blob detection
+		IplImage* gray = 0;
+		IplImage* thres = 0;
+		IplImage* prcs_flg = 0;					// Process flag to flag whether the current pixel is already processed as part blob detection
 
-	int h, w;								// Variables to store Image Height and Width
+		int h, w;								// Variables to store Image Height and Width
 
-	int ihist[256];							// Array to store Histogram values
-	float hist_val[256];					// Array to store Normalised Histogram values
+		int ihist[256];							// Array to store Histogram values
+		float hist_val[256];					// Array to store Normalised Histogram values
 
-	int blob_count;
-	int n;									// Number of pixels in a blob
-	int pos;								// Position or pixel value of the image
+		int blob_count;
+		int n;									// Number of pixels in a blob
+		int pos;								// Position or pixel value of the image
 
-	int rectw, recth;						// Width and Height of the Bounding Box
-	double aspect_ratio;					// Aspect Ratio of the Bounding Box
+		int rectw, recth;						// Width and Height of the Bounding Box
+		double aspect_ratio;					// Aspect Ratio of the Bounding Box
 
-	int min_blob_sze = 50;					// Minimum Blob size limit 
-	// int max_blob_sze = 150000;			// Maximum Blob size limit
+		int min_blob_sze = 50;					// Minimum Blob size limit 
+		// int max_blob_sze = 150000;			// Maximum Blob size limit
 
-	CvPoint P, Q, R, S;						// Corners of the Marker
-	printf("Here 0\n");
-	// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
-	IplImage* marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
-	printf("Here 0.1\n");
-	CvPoint2D32f srcQuad[4], dstQuad[4];	// Warp matrix Parameters: Source, Destination
-	printf("Here 0.2\n");
-	dstQuad[0].x = 0;						// Positions of Marker image (to where it has to be transposed)
-	dstQuad[0].y = 0;
-	dstQuad[1].x = CV_AR_MARKER_SIZE;
-	dstQuad[1].y = 0;
-	dstQuad[2].x = 0;
-	dstQuad[2].y = CV_AR_MARKER_SIZE;
-	dstQuad[3].x = CV_AR_MARKER_SIZE;
-	dstQuad[3].y = CV_AR_MARKER_SIZE;
+		CvPoint P, Q, R, S;						// Corners of the Marker
+		printf("Here 0\n");
+		// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
+		IplImage* marker_transposed_img = cvCreateImage(cvSize(CV_AR_MARKER_SIZE, CV_AR_MARKER_SIZE), 8, 1);
+		printf("Here 0.1\n");
+		CvPoint2D32f srcQuad[4], dstQuad[4];	// Warp matrix Parameters: Source, Destination
+		printf("Here 0.2\n");
+		dstQuad[0].x = 0;						// Positions of Marker image (to where it has to be transposed)
+		dstQuad[0].y = 0;
+		dstQuad[1].x = CV_AR_MARKER_SIZE;
+		dstQuad[1].y = 0;
+		dstQuad[2].x = 0;
+		dstQuad[2].y = CV_AR_MARKER_SIZE;
+		dstQuad[3].x = CV_AR_MARKER_SIZE;
+		dstQuad[3].y = CV_AR_MARKER_SIZE;
 
 
-	//Step	: Capture a frame from Camera for creating and initializing manipulation variables
-	//Info	: Inbuit functions from OpenCV
-	//Note	: 
+		//Step	: Capture a frame from Camera for creating and initializing manipulation variables
+		//Info	: Inbuit functions from OpenCV
+		//Note	: 
 
-	printf("Here 0.5\n");
+		printf("Here 0.5\n");
 
-	if (img == NULL)
-	{
-		printf("Loading image\n");
-		img = cvLoadImage("markerphoto.jpg");
-		if (!img)
+		if (img == NULL)
 		{
-			printf("Load failed\n");
-			return markers;
-		}
-	}
-
-	printf("Here 1\n");
-
-	// Creation of Intermediate 'Image' Objects required later
-	gray = cvCreateImage(cvGetSize(img), 8, 1);				// To hold Grayscale Image
-	thres = cvCreateImage(cvGetSize(img), 8, 1);			// To hold OTSU thresholded Image
-	prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);			// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
-
-	int* clr_flg = (int*)malloc(sizeof(int) * img->width);		// Array representing elements of entire current row to assign Blob number
-	int* clrprev_flg = (int*)malloc(sizeof(int) *img->width);	// Array representing elements of entire previous row to assign Blob number
-
-	h = img->height;											// Height and width of the Image
-	w = img->width;
-
-	bool corner_flag = false;      								// Flag to check whether the current pixel is a Edgel or not
-	CvPoint corners[10000];         							// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
-
-	CvMat* warp_matrix = cvCreateMat(3, 3, CV_32FC1);			// Warp matrix to store perspective data
-
-
-	double t;				// variable to calculate timing
-
-	int marker_id;
-	int marker_num;
-	bool valid_marker_found;
-
-	bool newMarkerFound = true;
-	while (newMarkerFound)		// While loop to query for Camera frame
-	{
-		newMarkerFound = false;
-
-		cvCvtColor(img, gray, CV_RGB2GRAY);	// Convert RGB image to Gray
-
-		memset(ihist, 0, 256);
-
-		for (int j = 0; j < gray->height; ++j)	// Use Histogram values from Gray image
-		{
-			uchar* hist = (uchar*)(gray->imageData + j * gray->widthStep);
-			for (int i = 0; i < gray->width; i++)
+			printf("Loading image\n");
+			img = cvLoadImage("markerphoto.jpg");
+			if (!img)
 			{
-				pos = hist[i];				// Check the pixel value
-				ihist[pos] += 1;			// Use the pixel value as the position/"Weight"
+				printf("Load failed\n");
+				return markers;
 			}
 		}
 
-		//Parameters required to calculate threshold using OTSU Method
-		float prbn = 0.0;                   // First order cumulative
-		float meanitr = 0.0;                // Second order cumulative
-		float meanglb = 0.0;                // Global mean level
-		int OPT_THRESH_VAL = 0;             // Optimum threshold value
-		float param1, param2;               // Parameters required to work out OTSU threshold algorithm
-		double param3 = 0.0;
+		printf("Here 1\n");
 
-		//Normalise histogram values and calculate global mean level
-		for (int i = 0; i < 256; ++i)
+		// Creation of Intermediate 'Image' Objects required later
+		gray = cvCreateImage(cvGetSize(img), 8, 1);				// To hold Grayscale Image
+		thres = cvCreateImage(cvGetSize(img), 8, 1);			// To hold OTSU thresholded Image
+		prcs_flg = cvCreateImage(cvGetSize(img), 8, 1);			// To hold Map of 'per Pixel' Flag to keep track while identifing Blobs
+
+		int* clr_flg = (int*)malloc(sizeof(int) * img->width);		// Array representing elements of entire current row to assign Blob number
+		int* clrprev_flg = (int*)malloc(sizeof(int) *img->width);	// Array representing elements of entire previous row to assign Blob number
+
+		h = img->height;											// Height and width of the Image
+		w = img->width;
+
+		bool corner_flag = false;      								// Flag to check whether the current pixel is a Edgel or not
+		CvPoint corners[10000];         							// Array to store all the Edgels.If the size of the array is small then there may be abrupt termination of the program
+
+		CvMat* warp_matrix = cvCreateMat(3, 3, CV_32FC1);			// Warp matrix to store perspective data
+
+
+		double t;				// variable to calculate timing
+
+		int marker_id;
+		int marker_num;
+		bool valid_marker_found;
+
+		printf("About to enter the Great Loop\n");
+		bool newMarkerFound = true;
+		while (newMarkerFound)		// While loop to query for Camera frame
 		{
-			hist_val[i] = ihist[i] / (float)(w * h);
-			meanglb += ((float)i * hist_val[i]);
-		}
+			newMarkerFound = false;
 
-		// Implementation of OTSU algorithm
-		for (int i = 0; i < 255; i++)
-		{
-			prbn += (float)hist_val[i];
-			meanitr += ((float)i * hist_val[i]);
+			cvCvtColor(img, gray, CV_RGB2GRAY);	// Convert RGB image to Gray
 
-			param1 = (float)((meanglb * prbn) - meanitr);
-			param2 = (float)(param1 * param1) / (float)(prbn * (1.0f - prbn));
+			memset(ihist, 0, 256);
 
-			if (param2 > param3)
+			for (int j = 0; j < gray->height; ++j)	// Use Histogram values from Gray image
 			{
-				param3 = param2;
-				OPT_THRESH_VAL = i; 				// Update the "Weight/Value" as Optimum Threshold value
-			}
-		}
-
-		cvThreshold(gray, thres, OPT_THRESH_VAL, 255, CV_THRESH_BINARY);	//Threshold the Image using the value obtained from OTSU method
-
-
-		//Step	: Identify Blobs in the OTSU Thresholded Image
-		//Info	: Custom Algorithm to Identify blobs
-		//Note	: This is a complicated method. Better refer the presentation, documentation or the Demo
-
-		blob_count = 0;				// Current Blob number used to represent the Blob
-		CvPoint cornerA, cornerB; 	// Two Corners to represent Bounding Box
-
-		memset(clr_flg, 0, w);		// Reset all the array elements ; Flag for tracking progress
-		memset(clrprev_flg, 0, w);
-
-		cvZero(prcs_flg);			// Reset all Process flags
-
-
-		for (int y = 0; y < thres->height; ++y)		//Start full scan of the image by incrementing y
-		{
-			uchar* prsnt = (uchar*)(thres->imageData + y * thres->widthStep);
-			uchar* pntr_flg = (uchar*)(prcs_flg->imageData + y * prcs_flg->widthStep);  // pointer to access the present value of pixel in Process flag
-			uchar* scn_prsnt;															// pointer to access the present value of pixel related to a particular blob
-			uchar* scn_next;															// pointer to access the next value of pixel related to a particular blob
-
-			for (int x = 0; x < thres->width; ++x)			//Start full scan of the image by incrementing x
-			{
-				int c = 0;									// Number of edgels in a particular blob
-				marker_id = 0;								// Identification number of the particular pattern
-				if ((prsnt[x] == 0) && (pntr_flg[x] == 0))	// If current pixel is black and has not been scanned before - continue
+				uchar* hist = (uchar*)(gray->imageData + j * gray->widthStep);
+				for (int i = 0; i < gray->width; i++)
 				{
-					blob_count += 1;						// Increment at the start of processing new blob
-					clr_flg[x] = blob_count;				// Update blob number
-					pntr_flg[x] = 255;						// Mark the process flag
+					pos = hist[i];				// Check the pixel value
+					ihist[pos] += 1;			// Use the pixel value as the position/"Weight"
+				}
+			}
 
-					n = 1;									// Update pixel count of this particular blob / this iteration
+			//Parameters required to calculate threshold using OTSU Method
+			float prbn = 0.0;                   // First order cumulative
+			float meanitr = 0.0;                // Second order cumulative
+			float meanglb = 0.0;                // Global mean level
+			int OPT_THRESH_VAL = 0;             // Optimum threshold value
+			float param1, param2;               // Parameters required to work out OTSU threshold algorithm
+			double param3 = 0.0;
 
-					cornerA.x = x;							// Update Bounding Box Location for this particular blob / this iteration
-					cornerA.y = y;
-					cornerB.x = x;
-					cornerB.y = y;
+			//Normalise histogram values and calculate global mean level
+			for (int i = 0; i < 256; ++i)
+			{
+				hist_val[i] = ihist[i] / (float)(w * h);
+				meanglb += ((float)i * hist_val[i]);
+			}
 
-					int lx, ly;								// Temp location to store the initial position of the blob
-					int belowx = 0;
+			// Implementation of OTSU algorithm
+			for (int i = 0; i < 255; i++)
+			{
+				prbn += (float)hist_val[i];
+				meanitr += ((float)i * hist_val[i]);
 
-					bool checkbelow = true;					// Scan the below row to check the continuity of the blob
+				param1 = (float)((meanglb * prbn) - meanitr);
+				param2 = (float)(param1 * param1) / (float)(prbn * (1.0f - prbn));
 
-					ly = y;
+				if (param2 > param3)
+				{
+					param3 = param2;
+					OPT_THRESH_VAL = i; 				// Update the "Weight/Value" as Optimum Threshold value
+				}
+			}
 
-					bool below_init = 1;					// Flags to facilitate the scanning of the entire blob once
-					bool start = 1;
+			cvThreshold(gray, thres, OPT_THRESH_VAL, 255, CV_THRESH_BINARY);	//Threshold the Image using the value obtained from OTSU method
 
-					while (ly < h)							// Start the scanning of the blob
+
+			//Step	: Identify Blobs in the OTSU Thresholded Image
+			//Info	: Custom Algorithm to Identify blobs
+			//Note	: This is a complicated method. Better refer the presentation, documentation or the Demo
+
+			blob_count = 0;				// Current Blob number used to represent the Blob
+			CvPoint cornerA, cornerB; 	// Two Corners to represent Bounding Box
+
+			memset(clr_flg, 0, w);		// Reset all the array elements ; Flag for tracking progress
+			memset(clrprev_flg, 0, w);
+
+			cvZero(prcs_flg);			// Reset all Process flags
+
+			printf("About to start going through the image\n");
+			for (int y = 0; y < thres->height; ++y)		//Start full scan of the image by incrementing y
+			{
+				uchar* prsnt = (uchar*)(thres->imageData + y * thres->widthStep);
+				uchar* pntr_flg = (uchar*)(prcs_flg->imageData + y * prcs_flg->widthStep);  // pointer to access the present value of pixel in Process flag
+				uchar* scn_prsnt;															// pointer to access the present value of pixel related to a particular blob
+				uchar* scn_next;															// pointer to access the next value of pixel related to a particular blob
+
+				for (int x = 0; x < thres->width; ++x)			//Start full scan of the image by incrementing x
+				{
+					int c = 0;									// Number of edgels in a particular blob
+					marker_id = 0;								// Identification number of the particular pattern
+					if ((prsnt[x] == 0) && (pntr_flg[x] == 0))	// If current pixel is black and has not been scanned before - continue
 					{
-						if (checkbelow == true)				// If there is continuity of the blob in the next row & checkbelow is set; continue to scan next row
+						blob_count += 1;						// Increment at the start of processing new blob
+						clr_flg[x] = blob_count;				// Update blob number
+						pntr_flg[x] = 255;						// Mark the process flag
+
+						n = 1;									// Update pixel count of this particular blob / this iteration
+
+						cornerA.x = x;							// Update Bounding Box Location for this particular blob / this iteration
+						cornerA.y = y;
+						cornerB.x = x;
+						cornerB.y = y;
+
+						int lx, ly;								// Temp location to store the initial position of the blob
+						int belowx = 0;
+
+						bool checkbelow = true;					// Scan the below row to check the continuity of the blob
+
+						ly = y;
+
+						bool below_init = 1;					// Flags to facilitate the scanning of the entire blob once
+						bool start = 1;
+
+						printf("Blob scan time\n");
+						while (ly < h)							// Start the scanning of the blob
 						{
-							if (below_init == 1) 			// Make a copy of Scanner pixel position once / initially
+							if (checkbelow == true)				// If there is continuity of the blob in the next row & checkbelow is set; continue to scan next row
 							{
-								belowx = x;
-								below_init = 0;
-							}
-
-							checkbelow = false;				// Clear flag before next flag
-
-							scn_prsnt = (uchar*)(thres->imageData + ly * thres->widthStep);
-							scn_next = (uchar*)(thres->imageData + (ly + 1) * thres->widthStep);
-
-							pntr_flg = (uchar*)(prcs_flg->imageData + ly * prcs_flg->widthStep);
-
-							bool onceb = 1;					// Flag to set and check blbo continuity for next row
-
-							// Loop to move Scanner pixel to the extreme left pixel of the blob
-							while ((scn_prsnt[belowx - 1] == 0) && ((belowx - 1) > 0) && (pntr_flg[belowx - 1] == 0))
-							{
-								cv_adjustBox(belowx, ly, cornerA, cornerB);    // Update Bounding Box corners
-								pntr_flg[belowx] = 255;
-
-								clr_flg[belowx] = blob_count;
-
-								corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, belowx, ly);
-								if (corner_flag == true)		// Check for the Edgel and update Edgel storage
+								if (below_init == 1) 			// Make a copy of Scanner pixel position once / initially
 								{
-									if (c < 10000)			// Make sure the allocated array size does not exceed
-									{
-										corners[c].x = belowx;
-										corners[c].y = ly;
-										c++;
-									}
-									corner_flag = false;
+									belowx = x;
+									below_init = 0;
 								}
-								n = n + 1;
-								belowx--;
-							}
-							//Scanning of a particular row of the blob
-							for (lx = belowx; lx < thres->width; ++lx)
-							{
-								if (start == 1)                 	// Initial/first row scan
+
+								checkbelow = false;				// Clear flag before next flag
+
+								scn_prsnt = (uchar*)(thres->imageData + ly * thres->widthStep);
+								scn_next = (uchar*)(thres->imageData + (ly + 1) * thres->widthStep);
+
+								pntr_flg = (uchar*)(prcs_flg->imageData + ly * prcs_flg->widthStep);
+
+								bool onceb = 1;					// Flag to set and check blbo continuity for next row
+
+								printf("About move scanner pixel whatever that means\n");
+								// Loop to move Scanner pixel to the extreme left pixel of the blob
+								while ((scn_prsnt[belowx - 1] == 0) && ((belowx - 1) > 0) && (pntr_flg[belowx - 1] == 0))
 								{
-									cv_adjustBox(lx, ly, cornerA, cornerB);
-									pntr_flg[lx] = 255;
+									cv_adjustBox(belowx, ly, cornerA, cornerB);    // Update Bounding Box corners
+									pntr_flg[belowx] = 255;
 
-									clr_flg[lx] = blob_count;
+									clr_flg[belowx] = blob_count;
 
-									corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
-									if (corner_flag == true)
+									corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, belowx, ly);
+									if (corner_flag == true)		// Check for the Edgel and update Edgel storage
 									{
-										if (c < 10000)					// Make sure the allocated array size does not exceed
+										if (c < 10000)			// Make sure the allocated array size does not exceed
 										{
-											corners[c].x = lx;
+											corners[c].x = belowx;
 											corners[c].y = ly;
 											c++;
 										}
 										corner_flag = false;
 									}
-
-									start = 0;
-									if ((onceb == 1) && (scn_next[lx] == 0))                 // Check for the continuity
-									{
-										belowx = lx;
-										checkbelow = true;
-										onceb = 0;
-									}
+									n = n + 1;
+									belowx--;
 								}
-								else if ((scn_prsnt[lx] == 0) && (pntr_flg[lx] == 0))        // Present pixel is black and has not been processed
+								printf("Done moving scanner pixel whatever that means\n");
+								printf("About to scan a row of the blob\n");
+								//Scanning of a particular row of the blob
+								for (lx = belowx; lx < thres->width; ++lx)
 								{
-									if ((clr_flg[lx - 1] == blob_count) || (clr_flg[lx + 1] == blob_count))        //Check for the continuity with previous scanned data
+									if (start == 1)                 	// Initial/first row scan
 									{
+										printf("First row scan\n");
 										cv_adjustBox(lx, ly, cornerA, cornerB);
-
 										pntr_flg[lx] = 255;
 
 										clr_flg[lx] = blob_count;
-
+										printf("Before cv_checkcorner\n");
 										corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
+										printf("After cv_checkcorner\n");
 										if (corner_flag == true)
 										{
+											printf("Corner flag true\n");
 											if (c < 10000)					// Make sure the allocated array size does not exceed
 											{
+												printf("c < 10000\n");
 												corners[c].x = lx;
 												corners[c].y = ly;
 												c++;
 											}
 											corner_flag = false;
 										}
-										n = n + 1;
 
-										if ((onceb == 1) && (scn_next[lx] == 0))
+										start = 0;
+										if ((onceb == 1) && (scn_next[lx] == 0))                 // Check for the continuity
 										{
+											printf("Something about continuity\n");
 											belowx = lx;
 											checkbelow = true;
 											onceb = 0;
 										}
+										printf("At the end of the first row stuff\n");
 									}
-									else if ((scn_prsnt[lx] == 0) && (clr_flg[lx - 2] == blob_count))	// Check for the continuity with previous scanned data
+									else if ((scn_prsnt[lx] == 0) && (pntr_flg[lx] == 0))        // Present pixel is black and has not been processed
 									{
-										cv_adjustBox(lx, ly, cornerA, cornerB);
-
-										pntr_flg[lx] = 255;
-
-										clr_flg[lx] = blob_count;
-
-										corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
-										if (corner_flag == true)
+										printf("Pixel black and not processed.\n");
+										if ((clr_flg[lx - 1] == blob_count) || (clr_flg[lx + 1] == blob_count))        //Check for the continuity with previous scanned data
 										{
-											if (c < 10000)					// Make sure the allocated array size does not exceed
+											cv_adjustBox(lx, ly, cornerA, cornerB);
+
+											pntr_flg[lx] = 255;
+
+											clr_flg[lx] = blob_count;
+
+											corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
+											if (corner_flag == true)
 											{
-												corners[c].x = lx;
-												corners[c].y = ly;
-												c++;
+												if (c < 10000)					// Make sure the allocated array size does not exceed
+												{
+													corners[c].x = lx;
+													corners[c].y = ly;
+													c++;
+												}
+												corner_flag = false;
 											}
-											corner_flag = false;
-										}
-										n = n + 1;
+											n = n + 1;
 
-										if ((onceb == 1) && (scn_next[lx] == 0))
-										{
-											belowx = lx;
-											checkbelow = true;
-											onceb = 0;
-										}
-									}
-									// Check for the continuity with previous scanned data
-									else if ((scn_prsnt[lx] == 0) && ((clrprev_flg[lx - 1] == blob_count) || (clrprev_flg[lx] == blob_count) || (clrprev_flg[lx + 1] == blob_count)))
-									{
-										cv_adjustBox(lx, ly, cornerA, cornerB);
-
-										pntr_flg[lx] = 255;
-
-										clr_flg[lx] = blob_count;
-
-										corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
-										if (corner_flag == true)
-										{
-											if (c < 10000)					// Make sure the allocated array size does not exceed
+											if ((onceb == 1) && (scn_next[lx] == 0))
 											{
-												corners[c].x = lx;
-												corners[c].y = ly;
-												c++;
+												belowx = lx;
+												checkbelow = true;
+												onceb = 0;
 											}
-											corner_flag = false;
 										}
-										n = n + 1;
-
-										if ((onceb == 1) && (scn_next[lx] == 0))
+										else if ((scn_prsnt[lx] == 0) && (clr_flg[lx - 2] == blob_count))	// Check for the continuity with previous scanned data
 										{
-											belowx = lx;
-											checkbelow = true;
-											onceb = 0;
+											cv_adjustBox(lx, ly, cornerA, cornerB);
+
+											pntr_flg[lx] = 255;
+
+											clr_flg[lx] = blob_count;
+
+											corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
+											if (corner_flag == true)
+											{
+												if (c < 10000)					// Make sure the allocated array size does not exceed
+												{
+													corners[c].x = lx;
+													corners[c].y = ly;
+													c++;
+												}
+												corner_flag = false;
+											}
+											n = n + 1;
+
+											if ((onceb == 1) && (scn_next[lx] == 0))
+											{
+												belowx = lx;
+												checkbelow = true;
+												onceb = 0;
+											}
+										}
+										// Check for the continuity with previous scanned data
+										else if ((scn_prsnt[lx] == 0) && ((clrprev_flg[lx - 1] == blob_count) || (clrprev_flg[lx] == blob_count) || (clrprev_flg[lx + 1] == blob_count)))
+										{
+											cv_adjustBox(lx, ly, cornerA, cornerB);
+
+											pntr_flg[lx] = 255;
+
+											clr_flg[lx] = blob_count;
+
+											corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
+											if (corner_flag == true)
+											{
+												if (c < 10000)					// Make sure the allocated array size does not exceed
+												{
+													corners[c].x = lx;
+													corners[c].y = ly;
+													c++;
+												}
+												corner_flag = false;
+											}
+											n = n + 1;
+
+											if ((onceb == 1) && (scn_next[lx] == 0))
+											{
+												belowx = lx;
+												checkbelow = true;
+												onceb = 0;
+											}
+
+										}
+										else
+										{
+											continue;
 										}
 
 									}
 									else
 									{
-										continue;
+										clr_flg[lx] = 0;	// Current pixel is not a part of any blob
 									}
-
-								}
-								else
-								{
-									clr_flg[lx] = 0;	// Current pixel is not a part of any blob
-								}
-							}				// End of scanning of a particular row of the blob
-						}
-						else				// If there is no continuity of the blob in the next row break from blob scan loop
-						{
-							break;
-						}
-
-						for (int q = 0; q < thres->width; ++q)	// Blob numbers of current row becomes Blob number of previous row for the next iteration of "row scan" for this particular blob
-						{
-							clrprev_flg[q] = clr_flg[q];
-						}
-						ly++;
-					}
-					// End of the Blob scanning routine 
-
-
-					// At this point after scanning image data, A blob (or 'connected component') is obtained. We use this Blob for further analysis to confirm it is a Marker.
-
-
-					// Get the Rectangular extent of the blob. This is used to estimate the span of the blob
-					// If it too small, say only few pixels, it is too good to be true that it is a Marker. Thus reducing erroneous decoding
-					rectw = abs(cornerA.x - cornerB.x);
-					recth = abs(cornerA.y - cornerB.y);
-					aspect_ratio = (double)rectw / (double)recth;
-
-					if ((n > min_blob_sze))// && (n < max_blob_sze))		// Reduces chances of decoding erroneous 'Blobs' as markers
-					{
-						if ((aspect_ratio > 0.33) && (aspect_ratio < 3.0))	// Increases chances of identified 'Blobs' to be close to Square 
-						{
-
-							// Step	: Identify 4 corners of the blob assuming it be a potential Marker
-							// Info	: Custom Algorithm to detect Corners using Pixel data || similar to FAST algorithm
-							// Note	: 
-
-							cv_ARgetMarkerPoints(c, corners, cornerA, cornerB, P, Q, R, S);      // 4-corners of the pattern obtained usig (+)region calculations
-
-							// CvPoint to CvPoint2D32f conversion for Warp Matrix calculation
-
-							srcQuad[0].x = P.x;				// Positions of the Marker in Image | "Deformed" Marker
-							srcQuad[0].y = P.y;
-							srcQuad[1].x = Q.x;
-							srcQuad[1].y = Q.y;
-							srcQuad[2].x = S.x;
-							srcQuad[2].y = S.y;
-							srcQuad[3].x = R.x;
-							srcQuad[3].y = R.y;
-
-
-							// Note: dstQuad[4];				// Positions to where Marker has to be transposed to | "Aligned" Marker
-
-							// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
-
-							cvGetPerspectiveTransform(srcQuad, dstQuad, warp_matrix);		// Warp Matrix Calculations
-							cvWarpPerspective(thres, marker_transposed_img, warp_matrix);	// SMART! Clip and Transform the deformed Marker simultaneously using a Mask (Marker catcher) and Warp Matrix 
-
-
-							// Step	: Decode 16bit Marker to Identify marker uniquely and Get associated Marker Number
-							// Info	: 
-							// Note	: The Marker ID is valid in any 4 Direction of looking
-
-							cv_ARgetMarkerID_16b(marker_transposed_img, marker_id);	// Get Marker ID
-							cv_ARgetMarkerNum(marker_id, marker_num);		// Get Marker Number Corrosponding to ID
-
-
-							if (marker_num > 0)
-							{
-								valid_marker_found = true;
+									printf("After the great big if\n");
+								}				// End of scanning of a particular row of the blob
+								printf("Done scanning a row of the blob\n");
 							}
-							else
+							else				// If there is no continuity of the blob in the next row break from blob scan loop
 							{
-								// If 4-Corners are not obtained from (+) region partitioning ; try to calculate corners from (x) region partitioning
-								cv_ARgetMarkerPoints2(c, corners, cornerA, cornerB, P, Q, R, S);
+								break;
+							}
 
-								srcQuad[0].x = P.x;			// Positions of the Marker in Image | "Deformed" Marker
+							for (int q = 0; q < thres->width; ++q)	// Blob numbers of current row becomes Blob number of previous row for the next iteration of "row scan" for this particular blob
+							{
+								clrprev_flg[q] = clr_flg[q];
+							}
+							ly++;
+						}
+						// End of the Blob scanning routine 
+						printf("End of blob scan time\n");
+
+						// At this point after scanning image data, A blob (or 'connected component') is obtained. We use this Blob for further analysis to confirm it is a Marker.
+
+
+						// Get the Rectangular extent of the blob. This is used to estimate the span of the blob
+						// If it too small, say only few pixels, it is too good to be true that it is a Marker. Thus reducing erroneous decoding
+						rectw = abs(cornerA.x - cornerB.x);
+						recth = abs(cornerA.y - cornerB.y);
+						aspect_ratio = (double)rectw / (double)recth;
+
+						if ((n > min_blob_sze))// && (n < max_blob_sze))		// Reduces chances of decoding erroneous 'Blobs' as markers
+						{
+							if ((aspect_ratio > 0.33) && (aspect_ratio < 3.0))	// Increases chances of identified 'Blobs' to be close to Square 
+							{
+
+								// Step	: Identify 4 corners of the blob assuming it be a potential Marker
+								// Info	: Custom Algorithm to detect Corners using Pixel data || similar to FAST algorithm
+								// Note	: 
+
+								cv_ARgetMarkerPoints(c, corners, cornerA, cornerB, P, Q, R, S);      // 4-corners of the pattern obtained usig (+)region calculations
+
+								// CvPoint to CvPoint2D32f conversion for Warp Matrix calculation
+
+								srcQuad[0].x = P.x;				// Positions of the Marker in Image | "Deformed" Marker
 								srcQuad[0].y = P.y;
 								srcQuad[1].x = Q.x;
 								srcQuad[1].y = Q.y;
@@ -458,95 +437,136 @@ ARMarkers scanImage(IplImage* img)
 								srcQuad[3].x = R.x;
 								srcQuad[3].y = R.y;
 
+
+								// Note: dstQuad[4];				// Positions to where Marker has to be transposed to | "Aligned" Marker
+
+								// Note: All Markers are tranposed to 160 * 160 pixels Image for decoding
+
 								cvGetPerspectiveTransform(srcQuad, dstQuad, warp_matrix);		// Warp Matrix Calculations
-								cvWarpPerspective(thres, marker_transposed_img, warp_matrix);
+								cvWarpPerspective(thres, marker_transposed_img, warp_matrix);	// SMART! Clip and Transform the deformed Marker simultaneously using a Mask (Marker catcher) and Warp Matrix 
+
+
+								// Step	: Decode 16bit Marker to Identify marker uniquely and Get associated Marker Number
+								// Info	: 
+								// Note	: The Marker ID is valid in any 4 Direction of looking
 
 								cv_ARgetMarkerID_16b(marker_transposed_img, marker_id);	// Get Marker ID
-								cv_ARgetMarkerNum(marker_id, marker_num);		// Get Marker Number Corrosponding to I
-
-							}
-
-							if (marker_num > 0)				// Now check if still marker is valid
-							{
-								valid_marker_found = true;
-							}
-
-							if (valid_marker_found == true)			// Show Display image corrosponding to the Marker Number
-							{
+								cv_ARgetMarkerNum(marker_id, marker_num);		// Get Marker Number Corrosponding to ID
 
 
-								// Step	: Augment the "Display object" in position of the marker over Camera Image using the Warp Matrix
-								// Info	: 
-								// Note	: Marker number used to make it easlier to change 'Display' image accordingly, 
-								// Also Note the jugglery to augment due to OpenCV's limiation passing two images of DIFFERENT sizes  
-								// while using "cvWarpPerspective".  
-								//printf("Marker: %d,\n", marker_num);
-
-								for (int i = 0; i < markers.values.size(); i++)
+								if (marker_num > 0)
 								{
-									if (markers.values[i] == marker_num)
+									valid_marker_found = true;
+								}
+								else
+								{
+									// If 4-Corners are not obtained from (+) region partitioning ; try to calculate corners from (x) region partitioning
+									cv_ARgetMarkerPoints2(c, corners, cornerA, cornerB, P, Q, R, S);
+
+									srcQuad[0].x = P.x;			// Positions of the Marker in Image | "Deformed" Marker
+									srcQuad[0].y = P.y;
+									srcQuad[1].x = Q.x;
+									srcQuad[1].y = Q.y;
+									srcQuad[2].x = S.x;
+									srcQuad[2].y = S.y;
+									srcQuad[3].x = R.x;
+									srcQuad[3].y = R.y;
+
+									cvGetPerspectiveTransform(srcQuad, dstQuad, warp_matrix);		// Warp Matrix Calculations
+									cvWarpPerspective(thres, marker_transposed_img, warp_matrix);
+
+									cv_ARgetMarkerID_16b(marker_transposed_img, marker_id);	// Get Marker ID
+									cv_ARgetMarkerNum(marker_id, marker_num);		// Get Marker Number Corrosponding to I
+
+								}
+
+								if (marker_num > 0)				// Now check if still marker is valid
+								{
+									valid_marker_found = true;
+								}
+
+								if (valid_marker_found == true)			// Show Display image corrosponding to the Marker Number
+								{
+
+
+									// Step	: Augment the "Display object" in position of the marker over Camera Image using the Warp Matrix
+									// Info	: 
+									// Note	: Marker number used to make it easlier to change 'Display' image accordingly, 
+									// Also Note the jugglery to augment due to OpenCV's limiation passing two images of DIFFERENT sizes  
+									// while using "cvWarpPerspective".  
+									//printf("Marker: %d,\n", marker_num);
+
+									for (int i = 0; i < markers.values.size(); i++)
 									{
-										marker_num = -1;
+										if (markers.values[i] == marker_num)
+										{
+											marker_num = -1;
+										}
+									}
+
+									if (/*std::find(markers.values.begin(), markers.values.end(), marker_num) != markers.values.end() && markers.values.size() > 0*/
+										marker_num > 0)
+									{
+										printf("New marker %d found in image\n", marker_num);
+										CvPoint centre;
+										centre.x = (cornerA.x + cornerB.x) / 2;
+										centre.y = (cornerA.y + cornerB.y) / 2;
+										markers.centres.push_back(centre);
+										markers.values.push_back(marker_num);
+										markers.count++;
+
+										newMarkerFound = true;
 									}
 								}
 
-								if (/*std::find(markers.values.begin(), markers.values.end(), marker_num) != markers.values.end() && markers.values.size() > 0*/
-									marker_num > 0)
-								{
-									CvPoint centre;
-									centre.x = (cornerA.x + cornerB.x) / 2;
-									centre.y = (cornerA.y + cornerB.y) / 2;
-									markers.centres.push_back(centre);
-									markers.values.push_back(marker_num);
-									markers.count++;
+								// If a valid marker was detected, then a Image will be augmented on that blob and process will continue to analysis of next blob
 
-									newMarkerFound = true;
-								}
 							}
-
-							// If a valid marker was detected, then a Image will be augmented on that blob and process will continue to analysis of next blob
-
+							else	// Discard the blob data
+							{
+								blob_count = blob_count - 1;
+							}
 						}
-						else	// Discard the blob data
+						else  		// Discard the blob data               
 						{
 							blob_count = blob_count - 1;
 						}
 					}
-					else  		// Discard the blob data               
+					else     // If current pixel is not black do nothing
 					{
-						blob_count = blob_count - 1;
+						continue;
 					}
-				}
-				else     // If current pixel is not black do nothing
-				{
-					continue;
-				}
-			}	// End full scan of the image by incrementing x
-		}	// End full scan of the image by incrementing y
+				}	// End full scan of the image by incrementing x
+			}	// End full scan of the image by incrementing y
 
 
-		t = cvGetTickCount() - t;
-		//printf("Calc. = %.4gms : FPS = %.4g\n",t/((double)cvGetTickFrequency()*1000.), ((double)cvGetTickFrequency()*1000.*1000.)/t);
+			t = cvGetTickCount() - t;
+			//printf("Calc. = %.4gms : FPS = %.4g\n",t/((double)cvGetTickFrequency()*1000.), ((double)cvGetTickFrequency()*1000.*1000.)/t);
 
-		//cvShowImage("Camera", img);
+			//cvShowImage("Camera", img);
 
-		//cvShowImage("Camera", img);
+			//cvShowImage("Camera", img);
 
-		//key = cvWaitKey(1000);			// OPENCV: wait for 1ms before accessing next frame
-	}
-	//cvWriteFrame( writer, img );		// Save frame to output
+			//key = cvWaitKey(1000);			// OPENCV: wait for 1ms before accessing next frame
+		}
+		//cvWriteFrame( writer, img );		// Save frame to output
 
-	//cvDestroyWindow("Camera");			// Release various parameters
+		//cvDestroyWindow("Camera");			// Release various parameters
 
-	cvReleaseImage(&img);
-	cvReleaseImage(&gray);
-	cvReleaseImage(&thres);
-	cvReleaseImage(&prcs_flg);
-	cvReleaseImage(&marker_transposed_img);
+		printf("Near the end of the scan\n");
 
-	cvReleaseMat(&warp_matrix);
+		cvReleaseImage(&img);
+		cvReleaseImage(&gray);
+		cvReleaseImage(&thres);
+		cvReleaseImage(&prcs_flg);
+		cvReleaseImage(&marker_transposed_img);
 
-	return markers;
+		cvReleaseMat(&warp_matrix);
+
+		free(clr_flg);
+		free(clrprev_flg);
+
+		return markers;
 }
 
 // Routine to update Bounding Box corners with farthest corners in that Box

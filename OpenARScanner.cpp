@@ -255,7 +255,7 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 
 							bool onceb = 1;					// Flag to set and check blbo continuity for next row
 
-							printf("About move scanner pixel whatever that means\n");
+							//printf("About move scanner pixel whatever that means\n");
 							// Loop to move Scanner pixel to the extreme left pixel of the blob
 							while ((scn_prsnt[belowx - 1] == 0) && ((belowx - 1) > 0) && (pntr_flg[belowx - 1] == 0))
 							{
@@ -278,27 +278,27 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 								n = n + 1;
 								belowx--;
 							}
-							printf("Done moving scanner pixel whatever that means\n");
-							printf("About to scan a row of the blob\n");
+							//printf("Done moving scanner pixel whatever that means\n");
+							//printf("About to scan a row of the blob\n");
 							//Scanning of a particular row of the blob
 							for (lx = belowx; lx < thres->width; ++lx)
 							{
 								if (start == 1)                 	// Initial/first row scan
 								{
-									printf("First row scan\n");
+									//printf("First row scan\n");
 									cv_adjustBox(lx, ly, cornerA, cornerB);
 									pntr_flg[lx] = 255;
 
 									clr_flg[lx] = blob_count;
-									printf("Before cv_checkcorner\n");
+									//printf("Before cv_checkcorner\n");
 									corner_flag = cv_checkCorner(thres->imageData, thres->widthStep, lx, ly);
-									printf("After cv_checkcorner\n");
+									//printf("After cv_checkcorner\n");
 									if (corner_flag == true)
 									{
-										printf("Corner flag true\n");
+										//printf("Corner flag true\n");
 										if (c < 10000)					// Make sure the allocated array size does not exceed
 										{
-											printf("c < 10000\n");
+											//printf("c < 10000\n");
 											corners[c].x = lx;
 											corners[c].y = ly;
 											c++;
@@ -309,16 +309,16 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 									start = 0;
 									if ((onceb == 1) && (scn_next[lx] == 0))                 // Check for the continuity
 									{
-										printf("Something about continuity\n");
+										//printf("Something about continuity\n");
 										belowx = lx;
 										checkbelow = true;
 										onceb = 0;
 									}
-									printf("At the end of the first row stuff\n");
+									//printf("At the end of the first row stuff\n");
 								}
 								else if ((scn_prsnt[lx] == 0) && (pntr_flg[lx] == 0))        // Present pixel is black and has not been processed
 								{
-									printf("Pixel black and not processed.\n");
+									//printf("Pixel black and not processed.\n");
 									if ((clr_flg[lx - 1] == blob_count) || (clr_flg[lx + 1] == blob_count))        //Check for the continuity with previous scanned data
 									{
 										cv_adjustBox(lx, ly, cornerA, cornerB);
@@ -415,9 +415,9 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 								{
 									clr_flg[lx] = 0;	// Current pixel is not a part of any blob
 								}
-								printf("After the great big if\n");
+								//printf("After the great big if\n");
 							}				// End of scanning of a particular row of the blob
-							printf("Done scanning a row of the blob\n");
+							//printf("Done scanning a row of the blob\n");
 						}
 						else				// If there is no continuity of the blob in the next row break from blob scan loop
 						{
@@ -431,7 +431,7 @@ ARMarkers OpenARScanner::scanImage(IplImage* img)
 						ly++;
 					}
 					// End of the Blob scanning routine 
-					printf("End of blob scan time\n");
+					//printf("End of blob scan time\n");
 
 					// At this point after scanning image data, A blob (or 'connected component') is obtained. We use this Blob for further analysis to confirm it is a Marker.
 
@@ -617,7 +617,6 @@ void OpenARScanner::cv_adjustBox(int x, int y, CvPoint& A, CvPoint& B)
 // Routine to check whether a particular pixel is an Edgel or not
 bool OpenARScanner::cv_checkCorner(char* img_data, int img_width, int x, int y)
 {
-	printf("In cv_checkcorner\n");
 	const int wind_sz = 5;
 	int wind_bnd = (wind_sz - 1) / 2;
 	int sum = 0;
@@ -625,26 +624,18 @@ bool OpenARScanner::cv_checkCorner(char* img_data, int img_width, int x, int y)
 	uchar* ptr[wind_sz];
 	int index = 0;
 
-	printf("Before first loop\n");
 	for (int k = (0 - wind_bnd); k <= wind_bnd; ++k)
 	{
-		printf("Index is %d\n", index);
 		ptr[index] = (uchar*)(img_data + (y + k) *  img_width);
 		index = index + 1;
 	}
 
-	printf("Before second loop\n");
 	for (int i = 0; i <= (wind_sz - 1); ++i)
 	{
 		if ((i == 0) || (i == (wind_sz - 1)))
 		{
-			printf("In the if\n");
 			for (int j = (0 - wind_bnd); j <= wind_bnd; ++j)
 			{
-				printf("In the loop in the if\n");
-				printf("Trying to access ptr[%d][%d]\n", i, x + j);
-				printf("x = %d, j = %d\n", x, j);
-				printf("That bool is %d\n", ptr[i][x + j] == 0);
 				if (ptr[i][x + j] == 0)
 					sum += 1;
 				else
@@ -653,7 +644,6 @@ bool OpenARScanner::cv_checkCorner(char* img_data, int img_width, int x, int y)
 		}
 		else
 		{
-			printf("In the else\n");
 			if (ptr[i][x - wind_bnd] == 0)
 				sum += 1;
 			else
@@ -665,14 +655,14 @@ bool OpenARScanner::cv_checkCorner(char* img_data, int img_width, int x, int y)
 				continue;
 		}
 	}
-	printf("Before final if\n");
+
 	if ((sum >= 4) && (sum <= 12))
 	{
 		result = true;
 	}
-	printf("Returning from cv+checkcorner\n");
 	return result;
 }
+
 
 // Distance algorithm for 4-corner validation
 void OpenARScanner::cv_updateCorner(CvPoint quad, CvPoint box, double& dist, CvPoint& corner)

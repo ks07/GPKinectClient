@@ -284,8 +284,13 @@ void KinectInterface::filterArray(int *depthArray, int *filteredData)
 // Capture an image of the empty play area, and use this to create a mask that we can apply whenever a frame is processed.
 void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 	try {
-		// Take the average pixel value as correct. TODO: Is this better suited to median? Or perhaps restrict to only a small central area of the image?
-		auto correct = cv::mean(calib_src);
+		// Take the median pixel value as correct. TODO: Perhaps restrict to only a small central area of the image?
+		std::vector<uint8_t> toSort(calib_src.datastart, calib_src.dataend);
+		std::sort(toSort.begin(), toSort.end());
+
+		size_t midpoint = toSort.size() / 2;
+
+		auto correct = toSort.at(midpoint);
 		cv::Mat meanMat(calib_src.size(), CV_8UC1, correct);
 
 		// Compute the mask as a simple difference operation. TODO: Is this linear scaling appropriate? Should it be non-linear somehow?

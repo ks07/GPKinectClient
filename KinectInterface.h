@@ -17,18 +17,16 @@ class KinectInterface
 	// TODO: We might want to include some geometry information, e.g. a min area.
 	struct BoxLimits
 	{
-		BoxLimits(uint8_t low, uint8_t high, unsigned int area = 90 * 123)
+		BoxLimits(uint8_t low, uint8_t high)
 			: low(low)
 			, high(high)
-			, area(area)
 		{}
 		uint8_t low;
 		uint8_t high;
-		unsigned int area;
 
 		// The operator needs to be overloaded in the std::ostream namespace, thus marked as friend.
 		friend std::ostream& operator<<(std::ostream &os, const BoxLimits &m) {
-			return os << "{ low : " << (int)m.low << " high : " << (int)m.high << " area : " << m.area << " }";
+			return os << "{ low : " << (int)m.low << " high : " << (int)m.high << " }";
 		}
 	};
 
@@ -74,13 +72,11 @@ private:
 
 	static const char * const CALIB_WINDOW_TITLE;
 
-	bool AreaApproxEqual(float measured, float defined);
-
 	static void RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst);
 
 	void ApplyCalibration(cv::Mat &src, cv::Mat &dest);
 
-	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, BoxLimits boxdef, const bool debug_window = false);
+	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
 	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found);
 	void DefineBoxes();
 	std::vector<BoxLimits> boxes;

@@ -355,7 +355,6 @@ void KinectInterface::TrackbarCallback(int value, void *kinectInstance) {
 void KinectInterface::DebugCalibrationLoop() {
 	bool run = true;
 	DCLmode dispMode = DCLmode::FILTERED;
-	size_t selectedBox = 0;
 
 	while (run) {
 		cv::Mat bw;
@@ -437,7 +436,6 @@ void KinectInterface::DebugCalibrationLoop() {
 					BoxLimits sel = boxes.at(n);
 					dbg_lower_thresh = sel.low;
 					dbg_upper_thresh = sel.high;
-					selectedBox = n;
 				}
 			}
 		}
@@ -446,7 +444,7 @@ void KinectInterface::DebugCalibrationLoop() {
 			if (!bw.empty()) {
 				// Ensure we don't try passing a failed input for whatever reason
 				std::vector<cv::RotatedRect> found;
-				FindRectanglesInLayer(bw, found, boxes.at(selectedBox), true);
+				FindRectanglesInLayer(bw, found, true);
 				std::cout << "Found" << found.size() << std::endl;
 			}
 		}
@@ -559,7 +557,7 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRec
 		LayerPreprocessDepthFrame(src, bw, boxit->low, boxit->high);
 
 		// Run the OpenCV detection on this thresholded layer.
-		int layerCnt = FindRectanglesInLayer(bw, found, *boxit, debug_window);
+		int layerCnt = FindRectanglesInLayer(bw, found, debug_window);
 
 		if (debug_window) {
 			std::cout << "Layer added " << layerCnt << " objects" << std::endl;
@@ -578,18 +576,7 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRec
 	}
 }
 
-bool KinectInterface::AreaApproxEqual(float measured, float defined) {
-	const float factor = 0.1;
-	const float areafactor = (1.0 + factor) * (1.0 + factor) - 1.0;
-
-	float smaller = MIN(measured, defined);
-	float larger = MAX(measured, defined);
-
-	float diff = larger - smaller;
-	return diff <= larger * areafactor;
-}
-
-int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, BoxLimits targetBox, const bool debug_window) {
+int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window) {
 
 	int foundStartSize = found.size();
 
@@ -649,17 +636,15 @@ int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedR
 		// Only look at contours with 4 corners
 		if (approxFakeContours.at(idx).size() == 4)
 		{
-			if (AreaApproxEqual(cv::contourArea(approxFakeContours.at(idx)), targetBox.area)) {
-				cv::RotatedRect box = cv::minAreaRect(approxFakeContours.at(idx));
-				found.push_back(box);
+			cv::RotatedRect box = cv::minAreaRect(approxFakeContours.at(idx));
+			found.push_back(box);
 
-				if (debug_window) {
-					cv::Scalar yellow = cv::Scalar(100, 255, 255);
-					cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
-					box.points(vertices);
-					for (int i = 0; i < 4; i++) {
-						cv::line(outputdisp, vertices[i], vertices[(i + 1) % 4], yellow);
-					}
+			if (debug_window) {
+				cv::Scalar yellow = cv::Scalar(100, 255, 255);
+				cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
+				box.points(vertices);
+				for (int i = 0; i < 4; i++) {
+					cv::line(outputdisp, vertices[i], vertices[(i + 1) % 4], yellow);
 				}
 			}
 		}

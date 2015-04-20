@@ -49,7 +49,7 @@ public:
 
 	bool initKinect();
 
-	bool GetWrappedData(cv::Mat &out, bool blocking = true, std::string fallback = "");
+	bool GetWrappedData(cv::Mat &out, bool blocking = true, std::string fallback = "", uint8_t extraFrames = 3);
 
 	void filterArray(int *depthArray, int *filteredData);
 
@@ -87,11 +87,9 @@ private:
 	HANDLE depthStream;
 	HANDLE depthFrameEvent;
 	INuiSensor* sensor = NULL;
-#endif
 
 	DWORD depthFrameTimeoutMillis = 15 * 1000;
-
-	short frameCounter = 0;
+#endif
 
 	cv::Mat calibMask;
 

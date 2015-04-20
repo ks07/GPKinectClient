@@ -87,7 +87,7 @@ bool KinectInterface::getKinectData(uint8_t *scaled_dest, bool blocking, int *ra
 		bool first = true;
 		const USHORT* curr = (const USHORT*)LockedRect.pBits;
 		const USHORT* dataEnd = curr + (width*height);
-		frameCounter = (frameCounter + 1) % 4;
+
 		while (curr < dataEnd) {
 			// Get depth in millimeters
 			USHORT depth = NuiDepthPixelToDepth(*curr++);
@@ -118,16 +118,49 @@ bool KinectInterface::getKinectData(uint8_t *scaled_dest, bool blocking, int *ra
 }
 
 
-bool KinectInterface::GetWrappedData(cv::Mat &out, bool blocking, std::string fallback) {
-	if (getKinectData(imgarr, blocking))
+bool KinectInterface::GetWrappedData(cv::Mat &out, bool blocking, std::string fallback, uint8_t extraFrames) {
+	static int *rawarr[] = { (int *)malloc(width*height*sizeof(int)), (int *)malloc(width*height*sizeof(int)), (int *)malloc(width*height*sizeof(int)) };
+	if (getKinectData(imgarr, blocking, rawarr[0]))
 	{
-		cv::Mat input(480, 640, CV_8UC1, imgarr);
+		if (!blocking) {
+			cv::Mat input(480, 640, CV_8UC1, imgarr);
 
-		// X and Y are inverted in the game world, so we should tranpose here
-		cv::transpose(input, out);
-		input.release();
+			// X and Y are inverted in the game world, so we should tranpose here
+			cv::transpose(input, out);
+			input.release();
 
-		return true;
+			return true;
+		}
+		else {
+			for (uint8_t i = 1; i < extraFrames; ++i) {
+				getKinectData(imgarr, blocking, rawarr[i]);
+			}
+			for (size_t i = 0; i < 640 * 480; ++i) {
+				int sum = 0;
+				int cnt = 0;
+
+				for (uint8_t f = 0; f < extraFrames; ++f) {
+					int dat = rawarr[f][i];
+					if (dat >= depthMin && dat <= depthMax) {
+						sum += dat;
+						cnt++;
+					}
+				}
+
+				if (cnt != 0) {
+					// If none of the pixels are valid, fallback to the filtered input, else average.
+					float avg = (float)sum / cnt;
+					imgarr[i] = (uint8_t)(((avg - depthMin) / depthRange) * 256.0);
+				}
+			}
+			cv::Mat input(480, 640, CV_8UC1, imgarr);
+
+			// X and Y are inverted in the game world, so we should tranpose here
+			cv::transpose(input, out);
+			input.release();
+
+			return true;
+		}
 	}
 	else if (fallback != "")
 	{

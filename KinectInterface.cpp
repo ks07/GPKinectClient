@@ -21,12 +21,14 @@ KinectInterface::KinectInterface(cv::Mat calib_src)
 
 void KinectInterface::DefineBoxes()
 {
-	boxes.emplace_back(95, 106); // Vans box
-	boxes.emplace_back(158, 170); // IC book
-	//boxes.emplace_back(97, 108); // Vans box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
-	//boxes.emplace_back(112, 123); // Large shoe box in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
-	//boxes.emplace_back(130, 141); // Book stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
-	//boxes.emplace_back(36, 47); // Build-a-comp box stack in fixed input TODO: REMOVE ME/IMPLEMENT CONTINGENCY PLANS
+	boxes.emplace_back(12, 30); // Biggie C Box (tall, large near-square)
+	boxes.emplace_back(60, 74); // Pinkie hole box (tall, narrow rectangle, covered side)
+	boxes.emplace_back(86, 97); // Vans box (narrow rectangle)
+	boxes.emplace_back(95, 107); // Flav box (shortened shoebox) IFFY!!!
+	boxes.emplace_back(103, 117); // Denim box (open bottom shoebox)
+	boxes.emplace_back(123, 137); // 100 box (flat 16:9-ish box)
+	boxes.emplace_back(146, 158); // IC book
+	boxes.emplace_back(157, 173); // Wood
 }
 
 
@@ -284,13 +286,8 @@ void KinectInterface::filterArray(int *depthArray, int *filteredData)
 // Capture an image of the empty play area, and use this to create a mask that we can apply whenever a frame is processed.
 void KinectInterface::CalibrateDepth(cv::Mat &calib_src) {
 	try {
-		// Take the median pixel value as correct. TODO: Perhaps restrict to only a small central area of the image?
-		std::vector<uint8_t> toSort(calib_src.datastart, calib_src.dataend);
-		std::sort(toSort.begin(), toSort.end());
-
-		size_t midpoint = toSort.size() / 2;
-
-		auto correct = toSort.at(midpoint);
+		// Use fixed approx floor value as the target for calibration.
+		auto correct = 180;
 		cv::Mat meanMat(calib_src.size(), CV_8UC1, correct);
 
 		// Compute the mask as a simple difference operation. TODO: Is this linear scaling appropriate? Should it be non-linear somehow?

@@ -68,6 +68,8 @@ public:
 	cv::Mat *dbg_src_img = NULL;
 
 private:
+	enum class DCLmode { FILTERED, RAW, PREPROCESSED };
+
 	static const char * const CALIB_WINDOW_TITLE;
 
 	static void RangeThreshold(cv::Mat &src, byte low, byte high, cv::Mat &dst);

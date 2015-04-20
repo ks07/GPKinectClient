@@ -357,7 +357,7 @@ void KinectInterface::TrackbarCallback(int value, void *kinectInstance) {
 
 void KinectInterface::DebugCalibrationLoop() {
 	bool run = true;
-	bool rawDisp = false;
+	DCLmode dispMode = DCLmode::FILTERED;
 
 	while (run) {
 		cv::Mat bw;
@@ -369,7 +369,21 @@ void KinectInterface::DebugCalibrationLoop() {
 		PreprocessDepthFrame(raw, srcb);
 		LayerPreprocessDepthFrame(srcb, bw, dbg_lower_thresh, dbg_upper_thresh);
 		
-		cv::imshow(CALIB_WINDOW_TITLE, rawDisp ? srcb : bw);
+		switch (dispMode)
+		{
+		case KinectInterface::DCLmode::RAW:
+			cv::putText(raw, "RAW", cv::Point(0, width - 5), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255));
+			cv::imshow(CALIB_WINDOW_TITLE, raw);
+			break;
+		case KinectInterface::DCLmode::PREPROCESSED:
+			cv::putText(srcb, "PRE", cv::Point(0, width - 5), cv::FONT_HERSHEY_SIMPLEX, 1.0, cv::Scalar(255));
+			cv::imshow(CALIB_WINDOW_TITLE, srcb);
+			break;
+		case KinectInterface::DCLmode::FILTERED:
+		default:
+			cv::imshow(CALIB_WINDOW_TITLE, bw);
+			break;
+		}
 
 		// TODO: We really want to avoid these if possible.
 		dbg_bw_img = &bw;
@@ -441,9 +455,21 @@ void KinectInterface::DebugCalibrationLoop() {
 			// q => Quit
 			run = false;
 		}
-		else if (keyPressed == 'r') {
-			// r => toggle raw input
-			rawDisp = !rawDisp;
+		else if (keyPressed == 'm') {
+			// m => cycle input mode
+			switch (dispMode)
+			{
+			case KinectInterface::DCLmode::FILTERED:
+				dispMode = DCLmode::RAW;
+				break;
+			case KinectInterface::DCLmode::RAW:
+				dispMode = DCLmode::PREPROCESSED;
+				break;
+			case KinectInterface::DCLmode::PREPROCESSED:
+			default:
+				dispMode = DCLmode::FILTERED;
+				break;
+			}
 		}
 		else if (keyPressed == 's') {
 			// s => save box def

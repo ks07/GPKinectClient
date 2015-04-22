@@ -473,6 +473,11 @@ void KinectInterface::DebugCalibrationLoop() {
 			boxes.emplace_back(dbg_lower_thresh, dbg_upper_thresh);
 			std::cout << "Added new box def #" << boxes.size() - 1 << " = " << boxes.back();
 		}
+		else if (keyPressed == 'i') {
+			std::vector<cv::RotatedRect> found;
+			cv::destroyWindow(CALIB_WINDOW_TITLE);
+			DebugInteractiveLoop(found);
+		}
 	}
 
 	// Make sure all windows are closed.

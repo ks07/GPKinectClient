@@ -473,6 +473,31 @@ void KinectInterface::DebugCalibrationLoop() {
 			boxes.emplace_back(dbg_lower_thresh, dbg_upper_thresh);
 			std::cout << "Added new box def #" << boxes.size() - 1 << " = " << boxes.back();
 		}
+		else if (keyPressed == 'p') {
+			cv::Mat someout;
+			cv::Mat cents;
+			cv::Mat floatimg;
+			bw.convertTo(floatimg, CV_32F);
+
+			std::vector<cv::Point2f> whites;
+
+			for (int i = 0; i < bw.size().width; i++) {
+				for (int j = 0; j < bw.size().height; j++) {
+					uint8_t dat = bw.data[j * bw.size().width + i];
+					if (dat >= 255) {
+						whites.emplace_back((float)i, (float)j);
+					}
+				}
+			}
+
+			cv::kmeans(whites, 1, someout, cv::TermCriteria(cv::TermCriteria::MAX_ITER, 10000, 0.00000001), 5, cv::KMEANS_RANDOM_CENTERS, cents);
+			std::cout << cents.at<float>(0, 0) << '\t' << cents.at<float>(0, 1) << std::endl;
+			cv::Point2f foundCenter(cents.at<float>(0, 0), cents.at<float>(0, 1));
+			cv::circle(raw, foundCenter, 10, cv::Scalar(255), -1);
+			cv::circle(raw, foundCenter, 7, cv::Scalar(128), -1);
+			cv::circle(raw, foundCenter, 5, cv::Scalar(0), -1);
+			cv::imshow("kmeans", raw);
+		}
 	}
 
 	// Make sure all windows are closed.

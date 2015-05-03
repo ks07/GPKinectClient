@@ -1,6 +1,6 @@
-#include <opencv2/opencv.hpp>
-
 #include "KinectInterface.h"
+
+#include <tuple>
 
 const char * const KinectInterface::CALIB_WINDOW_TITLE = "Calibration";
 
@@ -355,6 +355,7 @@ void KinectInterface::TrackbarCallback(int value, void *kinectInstance) {
 void KinectInterface::DebugCalibrationLoop() {
 	bool run = true;
 	DCLmode dispMode = DCLmode::FILTERED;
+	char writeCounter[] = "acapture.png";
 
 	while (run) {
 		cv::Mat bw;
@@ -443,7 +444,7 @@ void KinectInterface::DebugCalibrationLoop() {
 			// t => Test
 			if (!bw.empty()) {
 				// Ensure we don't try passing a failed input for whatever reason
-				std::vector<cv::RotatedRect> found;
+				std::vector<HeightRotatedRect> found;
 				FindRectanglesInLayer(bw, found, true);
 				std::cout << "Found" << found.size() << std::endl;
 			}
@@ -474,9 +475,13 @@ void KinectInterface::DebugCalibrationLoop() {
 			std::cout << "Added new box def #" << boxes.size() - 1 << " = " << boxes.back();
 		}
 		else if (keyPressed == 'i') {
-			std::vector<cv::RotatedRect> found;
+			std::vector<HeightRotatedRect> found;
 			cv::destroyWindow(CALIB_WINDOW_TITLE);
 			DebugInteractiveLoop(found);
+		}
+		else if (keyPressed == '#') {
+			cv::imwrite(writeCounter, raw);
+			writeCounter[0]++;
 		}
 	}
 
@@ -485,8 +490,9 @@ void KinectInterface::DebugCalibrationLoop() {
 }
 
 
-void KinectInterface::DebugInteractiveLoop(std::vector<cv::RotatedRect> &found) {
+void KinectInterface::DebugInteractiveLoop(std::vector<HeightRotatedRect> &found) {
 	bool contLoop = true;
+	char writeCounter[] = "aicapture.png";
 
 	cv::Mat disp;
 
@@ -513,6 +519,10 @@ void KinectInterface::DebugInteractiveLoop(std::vector<cv::RotatedRect> &found) 
 			// a => Accept current input
 			contLoop = false;
 		}
+		else if (keyPressed == '#') {
+			cv::imwrite(writeCounter, raw);
+			writeCounter[0]++;
+		}
 
 		raw.release();
 	}
@@ -523,7 +533,7 @@ void KinectInterface::DebugInteractiveLoop(std::vector<cv::RotatedRect> &found) 
 }
 
 
-void KinectInterface::DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found) {
+void KinectInterface::DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<HeightRotatedRect> &found) {
 	// Display all the found geometries over the original image.
 	cv::cvtColor(base, out, cv::COLOR_GRAY2BGR);
 
@@ -531,10 +541,10 @@ void KinectInterface::DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, st
 	const cv::Scalar yellow = cv::Scalar(100, 255, 255);
 
 	// Use the min area bounding rectangle to get us a quick approx that we can use. TODO: This is not ideal in the slightest if our bounding contour is off... we should check them!
-	for (std::vector<cv::RotatedRect>::iterator rectit = found.begin(); rectit != found.end(); ++rectit)
+	for (std::vector<HeightRotatedRect>::iterator rectit = found.begin(); rectit != found.end(); ++rectit)
 	{
 		cv::Point2f vertices[4]; // The mind boggles why OpenCV doesn't have a function to draw it's own shapes...
-		rectit->points(vertices);
+		std::get<0>(*rectit).points(vertices);
 		for (int i = 0; i < 4; i++) {
 			cv::line(out, vertices[i], vertices[(i + 1) % 4], yellow);
 		}
@@ -543,7 +553,7 @@ void KinectInterface::DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, st
 
 
 // TODO: Rename to frame?
-void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRect> &found, const bool debug_window) {
+void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<HeightRotatedRect> &found, const bool debug_window) {
 	// We must be given a greyscale input.
 	assert(raw.type() == CV_8UC1);
 
@@ -562,7 +572,7 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRec
 		LayerPreprocessDepthFrame(src, bw, boxit->low, boxit->high);
 
 		// Run the OpenCV detection on this thresholded layer.
-		int layerCnt = FindRectanglesInLayer(bw, found, debug_window);
+		int layerCnt = FindRectanglesInLayer(bw, found, debug_window, boxit->scale);
 
 		if (debug_window) {
 			std::cout << "Layer added " << layerCnt << " objects" << std::endl;
@@ -581,7 +591,7 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRec
 	}
 }
 
-int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window) {
+int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotatedRect> &found, const bool debug_window, uint8_t layermid) {
 
 	int foundStartSize = found.size();
 
@@ -642,7 +652,7 @@ int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedR
 		if (approxFakeContours.at(idx).size() == 4)
 		{
 			cv::RotatedRect box = cv::minAreaRect(approxFakeContours.at(idx));
-			found.push_back(box);
+			found.push_back(HeightRotatedRect(box, layermid));
 
 			if (debug_window) {
 				cv::Scalar yellow = cv::Scalar(100, 255, 255);

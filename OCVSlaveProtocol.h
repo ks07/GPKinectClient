@@ -12,7 +12,7 @@ public:
 
 	void Connect();
 
-	bool CallVision(std::vector<cv::RotatedRect> &found, OCVSPacketScanReq::ScanType mode = OCVSPacketScanReq::ScanType::SCAN);
+	bool CallVision(std::vector<KinectInterface::HeightRotatedRect> &found, OCVSPacketScanReq::ScanType mode = OCVSPacketScanReq::ScanType::SCAN);
 
 	void RunCalibration();
 

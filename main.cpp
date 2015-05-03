@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
 	}
 
 	OCVSlaveProtocol client(argv[1], argv[2]);
+	client.RunCalibration();
 	client.Connect();
 
 	return 0;

@@ -1,6 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include "GPKinectAPI/OCVSPacket.h"
+#include "GPKinectAPI/OCVSPacketScanReq.h"
 #include "KinectInterface.h"
 
 class OCVSlaveProtocol
@@ -11,13 +12,13 @@ public:
 
 	void Connect();
 
-	bool CallVision(std::vector<cv::RotatedRect> &found);
+	bool CallVision(std::vector<cv::RotatedRect> &found, OCVSPacketScanReq::ScanType mode = OCVSPacketScanReq::ScanType::SCAN);
+
+	void RunCalibration();
 
 private:
 	const char * const host;
 	const char * const port;
-
-	uint8_t *imgarr = NULL;
 
 	std::vector<char> recvBuff;
 	std::vector<OCVSPacket> pktSendBuff;

@@ -1,16 +1,15 @@
 #include <cstdio>
 #include <iostream>
 #include <asio.hpp>
+#include <cassert>
 
 #include "GPKinectAPI/OCVSPacketAck.h"
 #include "GPKinectAPI/OCVSPacketChallenge.h"
 #include "GPKinectAPI/OCVSPacketScanHeader.h"
 #include "GPKinectAPI/OCVSPacketScanChunk.h"
+#include "GPKinectAPI/OCVSPacketScanReq.h"
 
 #include "OCVSlaveProtocol.h"
-
-// Use image file input in case a Kinect is not connected (for debugging use!)
-#define FIXED_FALLBACK 1
 
 using asio::ip::tcp;
 
@@ -18,71 +17,50 @@ OCVSlaveProtocol::OCVSlaveProtocol(char *host, char *port)
 	: host(host)
 	, port(port)
 	, kinect(new KinectInterface())
-	, imgarr((uint8_t *)calloc(KinectInterface::width * KinectInterface::height, sizeof(uint8_t)))
 {
 	// TODO: Do we really want to be doing this here?
 	// TODO: Handle init errors
 	initSuccess = kinect->initKinect();
-	if (initSuccess) {
-		while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
-		std::cout << std::endl;
-	}
+	//if (initSuccess) {
+	//	while (!kinect->getKinectData(NULL, imgarr, false)) { std::cout << '.'; } // TODO: Sleep here to throttle!
+	//	std::cout << std::endl;
+	//}
+	cv::Mat calib_src;
+	kinect->GetWrappedData(calib_src, true, "floor.png");
+	kinect->CalibrateDepth(calib_src);
+	calib_src.release();
 }
 
 OCVSlaveProtocol::~OCVSlaveProtocol()
 {
 	delete kinect;
-	if (imgarr != NULL) {
-		free(imgarr);
-	}
 }
 
-bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found)
+bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, OCVSPacketScanReq::ScanType mode)
 {
 	bool retval = false;
 	found.clear();
 
-	if (initSuccess && kinect->getKinectData(NULL, imgarr, true))
-	{
-		cv::Mat input(480, 640, CV_8U, imgarr);
-		//cv::imshow("src", input);
-		//cv::waitKey();
-
-		// X and Y are inverted in the game world, so we should tranpose here
-		cv::Mat transposed;
-		cv::transpose(input, transposed);
-		input.release();
-
-		kinect->RunOpenCV(transposed, found);
-		transposed.release();
-		return true;
+	if (mode == OCVSPacketScanReq::ScanType::SCAN_INTERACTIVE) {
+		// We assume true here, the user can see the input anyway.
+		retval = true;
+		kinect->DebugInteractiveLoop(found); //TODO: Return found
 	}
-	else if (FIXED_FALLBACK)
-	{
-		std::cerr << "[ERROR] Falling back to fixed image input!" << std::endl;
-		cv::Mat src = cv::imread("boxbroom_painted_2.png");
-		// Convert to grayscale
+	else {
 		cv::Mat input;
-		cv::cvtColor(src, input, cv::COLOR_BGR2GRAY);
-		src.release();
-
-		// X and Y are inverted in the game world, so we should tranpose here
-		cv::Mat transposed;
-		cv::transpose(input, transposed);
+		retval = kinect->GetWrappedData(input, true, "closebox.png");
+		kinect->ProcessDepthImage(input, found, mode == OCVSPacketScanReq::ScanType::SCAN_DEBUG);
 		input.release();
-
-		kinect->RunOpenCV(transposed, found);
-		transposed.release();
-		return false;
-	}
-	else
-	{
-		return false;
 	}
 
 	std::cout << "Found" << found.size() << std::endl;
 
 	return retval;
+}
+
+void OCVSlaveProtocol::RunCalibration()
+{
+	kinect->DebugCalibrationLoop();
 }
 
 void OCVSlaveProtocol::Connect()
@@ -143,14 +121,17 @@ void OCVSlaveProtocol::Connect()
 						throw asio::system_error(asio::error_code());
 					}
 
+					OCVSPacketScanReq scanReq(buf, 0); // TODO: Check buffer behaviour...
+
+					OCVSPacketScanReq::ScanType reqType = scanReq.GetRequestType();
+
 					////////////////////////////////////////
 					// Attempt to get some chunks to send //
 					////////////////////////////////////////
 
 					std::cout << "Request received, ACK'ing and responding." << std::endl;
 
-
-					CallVision(found);
+					CallVision(found, reqType);
 
 					size_t chunk_count = found.size();
 

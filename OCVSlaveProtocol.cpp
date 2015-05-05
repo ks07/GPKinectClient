@@ -2,6 +2,7 @@
 #include <iostream>
 #include <asio.hpp>
 #include <cassert>
+#include <tuple>
 
 #include "GPKinectAPI/OCVSPacketAck.h"
 #include "GPKinectAPI/OCVSPacketChallenge.h"
@@ -36,7 +37,7 @@ OCVSlaveProtocol::~OCVSlaveProtocol()
 	delete kinect;
 }
 
-bool OCVSlaveProtocol::CallVision(std::vector<cv::RotatedRect> &found, OCVSPacketScanReq::ScanType mode)
+bool OCVSlaveProtocol::CallVision(std::vector<KinectInterface::HeightRotatedRect> &found, OCVSPacketScanReq::ScanType mode)
 {
 	bool retval = false;
 	found.clear();
@@ -69,9 +70,9 @@ void OCVSlaveProtocol::Connect()
 	{
 		try
 		{
-			std::vector<cv::RotatedRect> found;
+			std::vector<KinectInterface::HeightRotatedRect> found;
 
-			OCVSPacketChallenge pktChallenge;
+			OCVSPacketChallenge pktChallenge(0, 180);
 
 			asio::io_service io_service;
 			tcp::resolver resolver(io_service);
@@ -144,7 +145,7 @@ void OCVSlaveProtocol::Connect()
 					std::vector<OCVSPacket *> chunks;
 					for (size_t i = 0; i < chunk_count; i++)
 					{
-						chunks.push_back(new OCVSPacketScanChunk(i, found.at(i)));
+						chunks.push_back(new OCVSPacketScanChunk(i, std::get<0>(found[i]), std::get<1>(found[i]) ));
 					}
 
 					OCVSPacketScanHeader pktScanHead(chunks); // TODO: Empty constructor?

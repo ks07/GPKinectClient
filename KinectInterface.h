@@ -1,4 +1,6 @@
 #pragma once
+#include <opencv2/opencv.hpp>
+
 #include <Windows.h>
 #include <Ole2.h>
 
@@ -11,6 +13,7 @@
 #include <vector>
 #include <stdint.h>
 #include <ostream>
+#include <tuple>
 
 class KinectInterface
 {
@@ -20,9 +23,12 @@ class KinectInterface
 		BoxLimits(uint8_t low, uint8_t high)
 			: low(low)
 			, high(high)
-		{}
+		{
+			scale = (low + high) / 2;
+		}
 		uint8_t low;
 		uint8_t high;
+		uint8_t scale;
 
 		// The operator needs to be overloaded in the std::ostream namespace, thus marked as friend.
 		friend std::ostream& operator<<(std::ostream &os, const BoxLimits &m) {
@@ -39,13 +45,14 @@ public:
 
 	void CalibrateDepth(cv::Mat &calib_src);
 
-	void ProcessDepthImage(cv::Mat &raw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
+	typedef std::tuple<cv::RotatedRect, uint8_t> HeightRotatedRect;
+	void ProcessDepthImage(cv::Mat &raw, std::vector<HeightRotatedRect> &found, const bool debug_window = false);
 
 	// Shows live depth input for calibration of box defs.
 	void DebugCalibrationLoop();
 
 	// Shows live depth input overlayed with detection for live debugging.
-	void DebugInteractiveLoop(std::vector<cv::RotatedRect> &found);
+	void DebugInteractiveLoop(std::vector<HeightRotatedRect> &found);
 
 	bool initKinect();
 
@@ -76,8 +83,8 @@ private:
 
 	void ApplyCalibration(cv::Mat &src, cv::Mat &dest);
 
-	int FindRectanglesInLayer(cv::Mat &bw, std::vector<cv::RotatedRect> &found, const bool debug_window = false);
-	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<cv::RotatedRect> &found);
+	int FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotatedRect> &found, const bool debug_window = false, uint8_t layermid = 0);
+	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<HeightRotatedRect> &found);
 	void DefineBoxes();
 	std::vector<BoxLimits> boxes;
 

@@ -85,14 +85,15 @@ void OCVSlaveProtocol::Connect()
 
 			for (;;)
 			{
-				std::vector<char> buf(128);
+				std::vector<char> wrbuf(128);
+				std::vector<char> rdbuf(128);
 				asio::error_code error;
 
 				std::cout << "Connected, sending challenge packet." << std::endl;
 
-				pktChallenge.Pack(buf);
+				pktChallenge.Pack(wrbuf);
 
-				socket.write_some(asio::buffer(buf), error);
+				socket.write_some(asio::buffer(wrbuf), error);
 				if (error == asio::error::eof)
 					break; // Connection closed cleanly by peer.
 				else if (error)
@@ -100,20 +101,45 @@ void OCVSlaveProtocol::Connect()
 
 				std::cout << "Waiting for response..." << std::endl;
 
-				size_t len = socket.read_some(asio::buffer(buf), error);
+				size_t len = socket.read_some(asio::buffer(rdbuf), error);
 				if (error == asio::error::eof)
 					break; // Connection closed cleanly by peer.
 				else if (error)
 					throw asio::system_error(error); // Some other error.
 
-				if (pktChallenge.VerifyReceived(buf)) {
+				bool haveExtraByte = false;
+				char extra = 0;
+
+				// Check if we've been given 
+				if (len == OCVSPacketChallenge().GetPackedSize() + 1) {
+					haveExtraByte = true;
+					len--;
+					extra = rdbuf[len];
+				}
+
+				if (pktChallenge.VerifyReceived(rdbuf,len)) {
 					std::cout << "Good response, connected." << std::endl;
 
-					len = socket.read_some(asio::buffer(buf), error);
-					if (error == asio::error::eof)
-						break; // Connection closed cleanly by peer.
-					else if (error)
-						throw asio::system_error(error); // Some other error.
+					if (haveExtraByte) {
+						std::cout << "Extra byte!" << std::endl;
+						len = 1;
+						rdbuf[0] = extra;
+						rdbuf[1] = 0; // Mark end with a null for debug
+
+						auto would_read = socket.available();
+						if (would_read > 0) {
+							// This shouldn't happen...
+							std::cout << "Read even more on top of extra packet!" << std::endl;
+							throw asio::system_error(asio::error::no_buffer_space); // Some other error.
+						}
+					}
+					else {
+						len = socket.read_some(asio::buffer(rdbuf), error);
+						if (error == asio::error::eof)
+							break; // Connection closed cleanly by peer.
+						else if (error)
+							throw asio::system_error(error); // Some other error.
+					}
 
 					// TODO: Proper checking
 					// Assume that if we receive a single byte it is a scan req -> so continue.
@@ -122,7 +148,7 @@ void OCVSlaveProtocol::Connect()
 						throw asio::system_error(asio::error_code());
 					}
 
-					OCVSPacketScanReq scanReq(buf, 0); // TODO: Check buffer behaviour...
+					OCVSPacketScanReq scanReq(rdbuf, 0); // TODO: Check buffer behaviour...
 
 					OCVSPacketScanReq::ScanType reqType = scanReq.GetRequestType();
 
@@ -151,8 +177,8 @@ void OCVSlaveProtocol::Connect()
 					OCVSPacketScanHeader pktScanHead(chunks); // TODO: Empty constructor?
 
 					// TODO: Re-arrange this, UE4 end needs to handle incomplete packets ASAP
-					OCVSPacketAck::getInstance()->Pack(buf);
-					socket.write_some(asio::buffer(buf), error);
+					OCVSPacketAck::getInstance()->Pack(wrbuf);
+					socket.write_some(asio::buffer(wrbuf), error);
 					if (error == asio::error::eof)
 						break; // Connection closed cleanly by peer.
 					else if (error)
@@ -162,23 +188,23 @@ void OCVSlaveProtocol::Connect()
 					///////// Send the found chunks ////////
 					////////////////////////////////////////
 
-					pktScanHead.Pack(buf);
-					socket.write_some(asio::buffer(buf), error);
+					pktScanHead.Pack(wrbuf);
+					socket.write_some(asio::buffer(wrbuf), error);
 					if (error == asio::error::eof)
 						break; // Connection closed cleanly by peer.
 					else if (error)
 						throw asio::system_error(error); // Some other error.
 
 					for (size_t i = 0; i < chunks.size(); i++) {
-						chunks.at(i)->Pack(buf);
-						socket.write_some(asio::buffer(buf), error);
+						chunks.at(i)->Pack(wrbuf);
+						socket.write_some(asio::buffer(wrbuf), error);
 						if (error == asio::error::eof)
 							break; // Connection closed cleanly by peer.
 						else if (error)
 							throw asio::system_error(error); // Some other error.
 					}
 
-					len = socket.read_some(asio::buffer(buf), error);
+					len = socket.read_some(asio::buffer(rdbuf), error);
 					if (error == asio::error::eof)
 						break; // Connection closed cleanly by peer.
 					else if (error)

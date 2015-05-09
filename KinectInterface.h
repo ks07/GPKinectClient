@@ -20,15 +20,17 @@ class KinectInterface
 	// TODO: We might want to include some geometry information, e.g. a min area.
 	struct BoxLimits
 	{
-		BoxLimits(uint8_t low, uint8_t high)
+		BoxLimits(uint8_t low, uint8_t high, double min_area)
 			: low(low)
 			, high(high)
+			, min_area(min_area)
 		{
 			scale = (low + high) / 2;
 		}
 		uint8_t low;
 		uint8_t high;
 		uint8_t scale;
+		double min_area;
 
 		// The operator needs to be overloaded in the std::ostream namespace, thus marked as friend.
 		friend std::ostream& operator<<(std::ostream &os, const BoxLimits &m) {
@@ -71,6 +73,7 @@ public:
 	static void TrackbarCallback(int value, void *kinectInstance);
 	int dbg_lower_thresh = 0;
 	int dbg_upper_thresh = 170;
+	double dbg_min_area = 5000.0;
 	cv::Mat *dbg_bw_img = NULL;
 	cv::Mat *dbg_src_img = NULL;
 
@@ -83,7 +86,7 @@ private:
 
 	void ApplyCalibration(cv::Mat &src, cv::Mat &dest);
 
-	int FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotatedRect> &found, const bool debug_window = false, uint8_t layermid = 0);
+	int FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotatedRect> &found, const bool debug_window = false, uint8_t layermid = 0, double min_area = 0.0);
 	void DrawDetectedGeometry(const cv::Mat &base, cv::Mat &out, std::vector<HeightRotatedRect> &found);
 	void DefineBoxes();
 	std::vector<BoxLimits> boxes;

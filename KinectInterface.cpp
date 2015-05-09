@@ -21,14 +21,14 @@ KinectInterface::KinectInterface(cv::Mat calib_src)
 
 void KinectInterface::DefineBoxes()
 {
-	boxes.emplace_back(12, 30); // Biggie C Box (tall, large near-square)
-	boxes.emplace_back(60, 74); // Pinkie hole box (tall, narrow rectangle, covered side)
-	boxes.emplace_back(86, 97); // Vans box (narrow rectangle)
-	boxes.emplace_back(95, 107); // Flav box (shortened shoebox) IFFY!!!
-	boxes.emplace_back(103, 117); // Denim box (open bottom shoebox)
-	boxes.emplace_back(123, 137); // 100 box (flat 16:9-ish box)
-	boxes.emplace_back(146, 158); // IC book
-	boxes.emplace_back(157, 173); // Wood
+	boxes.emplace_back(12, 30, 25000.0); // Biggie C Box (tall, large near-square)
+	boxes.emplace_back(60, 74, 10000.0); // Pinkie hole box (tall, narrow rectangle, covered side)
+	boxes.emplace_back(86, 97, 7000.0); // Vans box (narrow rectangle)
+	boxes.emplace_back(95, 107, 14000.0); // Flav box (shortened shoebox) IFFY!!!
+	boxes.emplace_back(103, 117, 15000.0); // Denim box (open bottom shoebox)
+	boxes.emplace_back(123, 137, 16500.0); // 100 box (flat 16:9-ish box)
+	boxes.emplace_back(146, 158, 7500.0); // IC book
+	//boxes.emplace_back(157, 173, 7000.0); // Wood
 }
 
 
@@ -437,6 +437,13 @@ void KinectInterface::DebugCalibrationLoop() {
 					BoxLimits sel = boxes.at(n);
 					dbg_lower_thresh = sel.low;
 					dbg_upper_thresh = sel.high;
+					dbg_min_area = sel.min_area;
+				}
+				else {
+					// reset
+					dbg_lower_thresh = 0;
+					dbg_upper_thresh = 170;
+					dbg_min_area = 5000.0;
 				}
 			}
 		}
@@ -445,7 +452,7 @@ void KinectInterface::DebugCalibrationLoop() {
 			if (!bw.empty()) {
 				// Ensure we don't try passing a failed input for whatever reason
 				std::vector<HeightRotatedRect> found;
-				FindRectanglesInLayer(bw, found, true);
+				FindRectanglesInLayer(bw, found, true, 0, dbg_min_area);
 				std::cout << "Found" << found.size() << std::endl;
 			}
 		}
@@ -471,7 +478,7 @@ void KinectInterface::DebugCalibrationLoop() {
 		}
 		else if (keyPressed == 's') {
 			// s => save box def
-			boxes.emplace_back(dbg_lower_thresh, dbg_upper_thresh);
+			boxes.emplace_back(dbg_lower_thresh, dbg_upper_thresh, 5000.0);
 			std::cout << "Added new box def #" << boxes.size() - 1 << " = " << boxes.back();
 		}
 		else if (keyPressed == 'i') {
@@ -572,7 +579,7 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<HeightRotatedR
 		LayerPreprocessDepthFrame(src, bw, boxit->low, boxit->high);
 
 		// Run the OpenCV detection on this thresholded layer.
-		int layerCnt = FindRectanglesInLayer(bw, found, debug_window, boxit->scale);
+		int layerCnt = FindRectanglesInLayer(bw, found, debug_window, boxit->scale, boxit->min_area);
 
 		if (debug_window) {
 			std::cout << "Layer added " << layerCnt << " objects" << std::endl;
@@ -591,7 +598,7 @@ void KinectInterface::ProcessDepthImage(cv::Mat &raw, std::vector<HeightRotatedR
 	}
 }
 
-int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotatedRect> &found, const bool debug_window, uint8_t layermid) {
+int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotatedRect> &found, const bool debug_window, uint8_t layermid, double min_area) {
 
 	int foundStartSize = found.size();
 
@@ -651,6 +658,14 @@ int KinectInterface::FindRectanglesInLayer(cv::Mat &bw, std::vector<HeightRotate
 		// Only look at contours with 4 corners
 		if (approxFakeContours.at(idx).size() == 4)
 		{
+			double area = cv::contourArea(contoursFound[idx]);
+			std::cout << "Area: " << area << " Min: " << min_area << std::endl;
+			if (min_area > area) {
+				// Skip this box!
+				std::cout << "Skipping!" << std::endl;
+				continue;
+			}
+
 			cv::RotatedRect box = cv::minAreaRect(approxFakeContours.at(idx));
 			found.push_back(HeightRotatedRect(box, layermid));
 
